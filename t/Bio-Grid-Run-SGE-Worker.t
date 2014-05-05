@@ -56,7 +56,7 @@ my $cmd1 = $m1->cache_config( "$td/master_config" . $job_id );
 
 for ( my $tid = 1; $tid <= 45; $tid++ ) {
     $ENV{SGE_TASK_ID} = $tid;
-    system("perl t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null");
+    system("$^X t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null");
 
     test_atomic( $job_id, $tid - 1, $tid - 1, $seqs );
 
@@ -80,7 +80,7 @@ my $cmd2 = $m2->cache_config( "$td/master_config" . $job_id );
 
 for ( my $tid = 1; $tid <= 23; $tid++ ) {
     $ENV{SGE_TASK_ID} = $tid;
-    system("perl t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null");
+    system("$^X t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null");
     test_atomic( $job_id, $tid - 1, $tid - 1, $seqs );
     test_atomic( $job_id, 22 + $tid, 22 + $tid, $seqs ) if ( 22 + $tid < 45 );
 }
@@ -104,7 +104,7 @@ my $cmd3 = $m3->cache_config("$td/master_config$job_id");
 
 for ( my $tid = 1; $tid <= 15; $tid++ ) {
     $ENV{SGE_TASK_ID} = $tid;
-    system("perl t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null");
+    system("$^X t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null");
 
     test_atomic( $job_id, ( $tid * 3 ) - 3, ( $tid * 3 ) - 3, $seqs );
     test_atomic( $job_id, ( $tid * 3 ) - 2, ( $tid * 3 ) - 2, $seqs );

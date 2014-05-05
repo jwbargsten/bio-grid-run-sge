@@ -49,7 +49,7 @@ my $m1 = Bio::Grid::Run::SGE::Master->new(
     working_dir      => $td,
     submit_bin       => 't/Bio-Grid-Run-SGE-Master.qsub.pl',
     cmd              => ['t/Bio-Grid-Run-SGE-Master.script.pl'],
-    perl_bin         => 'perl',
+    perl_bin         => $^X,
     input            => [ { format => 'General', sep => '^>', files => ['t/data/test.fa'], } ],
     use_stdin        => 1,
     result_on_stdout => 1,
@@ -61,7 +61,7 @@ my $cmd1 = $m1->cache_config("$td/master_config" . $job_id);
 for ( my $tid = 1; $tid <= 45; $tid++ ) {
     last;
     $ENV{SGE_TASK_ID} = $tid;
-    system( "perl t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null"  );
+    system( "$^X t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null"  );
 
     test_atomic($job_id, $tid-1, $tid-1, $seqs);
 
@@ -73,7 +73,7 @@ my $m2 = Bio::Grid::Run::SGE::Master->new(
     working_dir      => $td,
     submit_bin       => 't/Bio-Grid-Run-SGE-Master.qsub.pl',
     cmd              => ['t/Bio-Grid-Run-SGE-Master.script.pl'],
-    perl_bin         => 'perl',
+    perl_bin         => $^X,
     input            => [ { format => 'General', sep => '^>', files => ['t/data/test.fa'], } ],
     use_stdin        => 1,
     result_on_stdout => 1,
@@ -86,7 +86,7 @@ my $cmd2 = $m2->cache_config("$td/master_config" . $job_id);
 for ( my $tid = 1; $tid <= 23; $tid++ ) {
     last;
     $ENV{SGE_TASK_ID} = $tid;
-    system( "perl t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null"  );
+    system( "$^X t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null"  );
     test_atomic($job_id, $tid-1, $tid - 1, $seqs);
     test_atomic($job_id, 22+$tid, 22+$tid , $seqs) if(22+$tid < 45);
 }
@@ -100,7 +100,7 @@ my $m3 = Bio::Grid::Run::SGE::Master->new(
     working_dir      => $td,
     submit_bin       => 't/Bio-Grid-Run-SGE-Master.qsub.pl',
     cmd              => ['t/Bio-Grid-Run-SGE-Master.script.pl'],
-    perl_bin         => 'perl',
+    perl_bin         => $^X,
     input            => [ { format => 'General', sep => '^>', files => ['t/data/test.fa'], } ],
     use_stdin        => 1,
     result_on_stdout => 1,
@@ -112,7 +112,7 @@ my $cmd3 = $m3->cache_config("$td/master_config$job_id");
 
 for ( my $tid = 1; $tid <= 15; $tid++ ) {
     $ENV{SGE_TASK_ID} = $tid;
-    say( "perl t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null"  );
+    say( "$^X t/Bio-Grid-Run-SGE-Master.script.pl -w $td/master_config$job_id 2>/dev/null"  );
     last;
 
     test_atomic($job_id, ($tid*3)-3, ($tid*3)-3, $seqs);
