@@ -1,0 +1,15 @@
+=pod
+
+=head1 CLUSTER SCRIPTS
+
+=head2 Creating
+
+=head2 L<Bio::Grid::Run::SGE> SCRIPT FILE STRUCTURE
+
+=head3 Run stuff before the job is started (pre_task)
+
+=head3 Run the job (task)
+
+=head4 Input data 
+
+=head3 Run stuff after the job finished (post_task)

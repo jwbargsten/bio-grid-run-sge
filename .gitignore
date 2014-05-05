@@ -1,0 +1,7 @@
+blib/
+_build/
+Build
+MANIFEST.bak
+MYMETA.json
+MYMETA.yml
+.ycompleterc
