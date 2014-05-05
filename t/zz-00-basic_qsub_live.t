@@ -46,7 +46,7 @@ yspew( "$job_dir/conf.yml", $basic_config );
 
 SKIP: {
   my ( $stdout, $stderr, $exit ) = capture {
-    system("$cl_env $job_dir/conf.yml");
+    system("$^X $cl_env $job_dir/conf.yml");
   };
 
   unless ( $exit == 0 ) {

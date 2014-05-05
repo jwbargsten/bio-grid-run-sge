@@ -14,7 +14,7 @@ BEGIN { use_ok('Bio::Grid::Run::SGE'); }
 
 my $cl_env = File::Spec->rel2abs("scripts/cl_syntax_error.pl");
 
-my $usage = `$cl_env --help`;
+my $usage = `$^X $cl_env --help`;
 
 diag $usage;
 
@@ -39,7 +39,7 @@ my $basic_config = {
 
 yspew( "$job_dir/conf.yml", $basic_config );
 
-system("$cl_env $job_dir/conf.yml");
+system("$^X $cl_env $job_dir/conf.yml");
 
 diag "THIS TEST MIGHT TAKE UP TO 30 MINUTES";
 my $max_time = 30 * 60;
