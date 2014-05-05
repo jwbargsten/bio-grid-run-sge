@@ -1,8 +1,14 @@
 =pod
 
-=head1 CLUSTER SCRIPTS
+=encoding utf8
 
-=head2 Creating
+=head1 NAME
+
+Bio::Grid::Run::SGE::ClusterScript - Information about cluster scripts of Bio::Grid::Run::SGE
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
 
 =head2 L<Bio::Grid::Run::SGE> SCRIPT FILE STRUCTURE
 
@@ -13,3 +19,11 @@
 =head4 Input data 
 
 =head3 Run stuff after the job finished (post_task)
+
+=head1 SEE ALSO
+
+=head1 AUTHOR
+
+jw bargsten, C<< <wissenschaft at bargsten dot org> >>
+
+=cut

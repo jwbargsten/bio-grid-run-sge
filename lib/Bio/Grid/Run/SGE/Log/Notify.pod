@@ -1,5 +1,7 @@
 =pod
 
+=encoding utf8
+
 =head1 NAME
 
 Bio::Grid::Run::SGE::Log::Notify - get notified if a job finishes
