@@ -13,7 +13,9 @@ use Bio::Gonzales::Util::Cerial;
 
 
 use Mouse;
-# VERSION
+
+our $VERSION = 0.01_01;
+
 our $RC_FILE = "$ENV{HOME}/.comp_bio_cluster.config";
 
 override 'BUILDARGS' => sub {
