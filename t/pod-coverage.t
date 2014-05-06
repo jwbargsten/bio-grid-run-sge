@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More;
+use Test::More skip_all => 'no pod coverage checks';
 
 unless ( $ENV{RELEASE_TESTING} ) {
     plan( skip_all => "Author tests not required for installation" );
