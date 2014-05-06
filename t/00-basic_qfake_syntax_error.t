@@ -9,6 +9,9 @@ use File::Spec;
 use File::Slurp qw/read_dir/;
 use List::Util;
 use Cwd qw/fastcwd/;
+use lib 't/lib';
+use Test::Util qw/rewrite_shebang/;
+use File::Path qw/remove_tree/;
 
 BEGIN { use_ok('Bio::Grid::Run::SGE'); }
 
@@ -19,13 +22,14 @@ my $usage = `$^X $cl_env --help`;
 diag $usage;
 
 my @elements = ( 'a', 'b', 'c', 'd', 'e', 'f' );
-my $tmp_dir = 'tmp_test';
+my $tmp_dir = File::Spec->rel2abs('tmp_test');
 mkdir $tmp_dir unless ( -d $tmp_dir );
 
 my $job_dir = tempdir( CLEANUP => 1, DIR => $tmp_dir );
 
 my $job_name   = 'test_all_fail';
 my $result_dir = 'r';
+my $qsub_cmd   = rewrite_shebang( 'bin/qfake.pl', "$job_dir/qfake.pl" );
 
 # create basic config
 my $basic_config = {
@@ -34,7 +38,7 @@ my $basic_config = {
   mode       => 'Consecutive',
   no_prompt  => 1,
   result_dir => $result_dir,
-  submit_bin => File::Spec->rel2abs('bin/qfake.pl'),
+  submit_bin => $qsub_cmd,
 };
 
 yspew( "$job_dir/conf.yml", $basic_config );
@@ -79,4 +83,5 @@ for my $f (@item_files) {
 }
 is_deeply( [ sort keys %found_elements ], [ sort @elements ] );
 
+remove_tree($tmp_dir);
 done_testing();

@@ -11,6 +11,7 @@ use File::Slurp qw/read_dir/;
 use List::Util;
 use Cwd qw/fastcwd/;
 use File::Which;
+use File::Path qw/remove_tree/;
 
 BEGIN {
   my $qsub = which('qsub');
@@ -24,7 +25,7 @@ BEGIN {
 
 my $cl_env = File::Spec->rel2abs("scripts/cl_env.pl");
 
-my $tmp_dir = 'tmp_test';
+my $tmp_dir = File::Spec->rel2abs('tmp_test');
 mkdir $tmp_dir unless ( -d $tmp_dir );
 
 my $job_dir = tempdir( CLEANUP => 1, DIR => $tmp_dir );
@@ -98,4 +99,5 @@ SKIP: {
   is_deeply( [ sort keys %found_elements ], [ sort @elements ] );
 }
 
+remove_tree($tmp_dir);
 done_testing();

@@ -7,27 +7,26 @@ use Storable;
 use File::Temp qw/tempdir/;
 use File::Spec::Functions qw/catfile rel2abs/;
 use Cwd qw/fastcwd/;
-
+use lib 't/lib';
+use Test::Util qw/rewrite_shebang/;
 
 BEGIN { use_ok('Bio::Grid::Run::SGE::Master'); }
 
 my $td = tempdir( CLEANUP => 1 );
+my $qsub_cmd = rewrite_shebang( 't/Bio-Grid-Run-SGE-Master.qsub.pl', "$td/Bio-Grid-Run-SGE-Master.qsub.pl" );
 
 $ENV{SGE_TASK_ID} = 1;
 $ENV{JOB_ID}      = -1;
 
-
 {
-
   my $m = Bio::Grid::Run::SGE::Master->meta;
 
-  diag jfreeze( [ map { $_->name } $m->get_all_attributes ]);
+  diag jfreeze( [ map { $_->name } $m->get_all_attributes ] );
 }
-
 
 my $m = Bio::Grid::Run::SGE::Master->new(
   working_dir      => $td,
-  submit_bin       => 't/Bio-Grid-Run-SGE-Master.qsub.pl',
+  submit_bin       => $qsub_cmd,
   cmd              => ['t/Bio-Grid-Run-SGE-Master.script.pl'],
   perl_bin         => $^X,
   input            => [ { format => 'General', sep => '^>', files => ['t/data/test.fa'], } ],
@@ -45,7 +44,8 @@ my $run_output_ref = yslurp('t/data/Bio-Grid-Run-SGE-Master_run.yml');
 
 #get the naming of the temp dir right
 @{$run_output_ref}{qw/working_dir stderr_dir tmp_dir result_dir log_dir/}
-  = map { $_ ? catfile( $td, $_ ) : $td } ( '', qw(cluster_job.tmp/err cluster_job.tmp cluster_job.result cluster_job.tmp/log) );
+  = map { $_ ? catfile( $td, $_ ) : $td }
+  ( '', qw(cluster_job.tmp/err cluster_job.tmp cluster_job.result cluster_job.tmp/log) );
 $run_output_ref->{input}[0]{idx_file} = catfile( $td, 'idx/cluster_job.0.idx' );
 $run_output_ref->{job_cmd}             =~ s!/tmp/lXGH5pgD5r!$td!g;
 $run_output_ref->{_worker_config_file} =~ s!/tmp/lXGH5pgD5r!$td!g;
@@ -53,8 +53,9 @@ my $curdir = fastcwd;
 $run_output_ref->{job_cmd}  =~ s!PERL!$^X!g;
 $run_output_ref->{perl_bin} =~ s!PERL!$^X!g;
 $run_output_ref->{stdout_dir} = catfile( $td, 'cluster_job.tmp', 'out' );
-$run_output_ref->{idx_dir} = catfile( $td, 'idx' );
+$run_output_ref->{idx_dir}    = catfile( $td, 'idx' );
 $run_output_ref->{script_dir} = rel2abs('t');
+$run_output_ref->{submit_bin} =~ s!/tmp/lXGH5pgD5r!$td!g;
 
 #yspew 't/data/Bio-Grid-Run-SGE-Master_run1.yml', $run_output;
 is_deeply( $run_output, $run_output_ref );
@@ -71,13 +72,20 @@ my $qsub_argv = yslurp( catfile( $td, 'master.qsub.cmd' ) );
 is_deeply(
   $qsub_argv,
   [
-    '-t', '1-45',
-    '-S', $^X,
-    '-N', 'cluster_job',
-    '-e', catfile( $td, 'cluster_job.tmp/err' ),
-    '-o', catfile( $td, 'cluster_job.tmp/out' ),
-    catfile( $td, 'cluster_job.tmp/env.cluster_job.pl' ), 't/Bio-Grid-Run-SGE-Master.script.pl',
-    '--worker', catfile( $td, 'cluster_job.tmp/cluster_job.config.dat' )
+    '-t',
+    '1-45',
+    '-S',
+    $^X,
+    '-N',
+    'cluster_job',
+    '-e',
+    catfile( $td, 'cluster_job.tmp/err' ),
+    '-o',
+    catfile( $td, 'cluster_job.tmp/out' ),
+    catfile( $td, 'cluster_job.tmp/env.cluster_job.pl' ),
+    't/Bio-Grid-Run-SGE-Master.script.pl',
+    '--worker',
+    catfile( $td, 'cluster_job.tmp/cluster_job.config.dat' )
   ]
 );
 

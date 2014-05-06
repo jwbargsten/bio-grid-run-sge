@@ -16,8 +16,7 @@ sub TEST { $d = $_[0]; }
 
     is( expand_path($fakedir), File::Spec->catfile($dir, $fakedir));
 
-    diag expand_path('~/asdfasdf/asdfasdf/asdf');
-
+    #diag expand_path('~/asdfasdf/asdfasdf/asdf');
 }
 
 
