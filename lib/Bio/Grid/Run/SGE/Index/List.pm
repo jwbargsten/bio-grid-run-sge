@@ -7,7 +7,6 @@ use strict;
 use Carp;
 use Storable qw/retrieve/;
 use List::MoreUtils qw/uniq/;
-use File::Slurp;
 
 with 'Bio::Grid::Run::SGE::Role::Indexable';
 

@@ -9,8 +9,8 @@ use File::Spec;
 use File::Path qw/mkpath/;
 use File::Spec::Functions qw/catfile/;
 use Data::Dumper;
-use File::Slurp;
 use List::Util qw/min/;
+use Path::Tiny;
 
 use base 'Exporter';
 our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
@@ -169,15 +169,12 @@ sub concat_files {
   open my $concat_fh, '>', catfile( $dir, "$c->{job_name}.j$c->{job_id}.result.concat" )
     or confess "Can't open filehandle: $!";
 
-  my @paths = read_dir($dir);
-  for my $f (@paths) {
-    if ( $f =~ /$file_regex/ ) {
-      my $abs_f = catfile( $dir, $f );
-      open my $fh, '<', $abs_f or confess "Can't open filehandle for ${f}: $!";
-      while ( my $line = <$fh> ) { print $concat_fh $line; }
-      $fh->close;
-      push @to_be_unlinked, $abs_f;
-    }
+  my @paths = path($dir)->children($file_regex);
+  for my $abs_f (@paths) {
+    open my $fh, '<', $abs_f or confess "Can't open filehandle for $abs_f: $!";
+    while ( my $line = <$fh> ) { print $concat_fh $line; }
+    $fh->close;
+    push @to_be_unlinked, $abs_f;
   }
   $concat_fh->close;
 
@@ -227,7 +224,7 @@ sub result_files {
                         (?:\..*)? #suffix
                         $/x;
 
-  my @paths = map { catfile( $dir, $_ ) } grep { $_ =~ /$file_regex/ } read_dir($dir);
+  my @paths = path($dir)->children($file_regex);
 
   return \@paths;
 }

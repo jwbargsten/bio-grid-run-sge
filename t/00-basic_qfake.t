@@ -6,12 +6,12 @@ use Bio::Grid::Run::SGE::Util qw/poll_interval/;
 use Bio::Gonzales::Util::Cerial;
 
 use File::Spec;
-use File::Slurp qw/read_dir/;
 use List::Util;
 use Cwd qw/fastcwd/;
 use lib 't/lib';
 use Test::Util qw/rewrite_shebang/;
 use File::Path qw/remove_tree/;
+use Path::Tiny;
 
 BEGIN { use_ok('Bio::Grid::Run::SGE'); }
 
@@ -29,7 +29,7 @@ my $job_dir = tempdir( CLEANUP => 1, DIR => $tmp_dir );
 
 my $job_name   = 'test_env';
 my $result_dir = 'r';
-my $qsub_cmd = rewrite_shebang('bin/qfake.pl', "$job_dir/qfake.pl");
+my $qsub_cmd   = rewrite_shebang( 'bin/qfake.pl', "$job_dir/qfake.pl" );
 
 # create basic config
 my $basic_config = {
@@ -40,7 +40,6 @@ my $basic_config = {
   result_dir => $result_dir,
   submit_bin => $qsub_cmd,
 };
-
 
 yspew( "$job_dir/conf.yml", $basic_config );
 
@@ -67,15 +66,15 @@ while ( $wait_time < $max_time ) {
 ok($finished_successfully);
 
 my @files
-  = grep {m/$job_name.*$finished_successfully.*\.env\.json$/} read_dir( "$job_dir/$result_dir", prefix => 1 );
+  = path($job_dir)->child($result_dir)->children(qr/^$job_name.*$finished_successfully.*\.env\.json$/);
 
 my $env = jslurp( $files[-2] );
 
 is( $env->{JOB_NAME}, $job_name );
 
 my %found_elements;
-my @item_files = grep {m/$job_name.*$finished_successfully.*\.item\.json$/}
-  read_dir( "$job_dir/$result_dir", prefix => 1 );
+my @item_files
+  = path($job_dir)->child($result_dir)->children(qr/^$job_name.*$finished_successfully.*\.item\.json$/);
 for my $f (@item_files) {
   my $items = jslurp($f);
   for my $item (@$items) {

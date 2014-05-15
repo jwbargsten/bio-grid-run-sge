@@ -7,7 +7,6 @@ use strict;
 use Carp;
 use Storable qw/retrieve/;
 use List::MoreUtils qw/uniq/;
-use File::Slurp;
 use Bio::Gonzales::Util::File qw/openod/;
 
 extends 'Bio::Grid::Run::SGE::Index::List';

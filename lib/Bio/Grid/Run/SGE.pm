@@ -18,7 +18,6 @@ use File::Spec;
 use Storable;
 use Getopt::Long::Descriptive;
 use Bio::Gonzales::Util::Cerial qw/yslurp/;
-use File::Slurp qw(:std);
 use Cwd qw/fastcwd/;
 use Scalar::Util qw/blessed/;
 

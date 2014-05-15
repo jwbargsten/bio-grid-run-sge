@@ -8,7 +8,6 @@ use Data::Dumper;
 
 use Bio::Grid::Run::SGE;
 use Bio::Grid::Run::SGE::Util qw/expand_path/;
-use File::Slurp qw(read_dir);
 use File::Spec::Functions qw(catfile);
 
 run_job(

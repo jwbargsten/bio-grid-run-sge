@@ -6,8 +6,6 @@ use File::Temp qw/tempdir/;
 use File::Compare qw/compare/;
 use File::Spec::Functions qw/catfile rel2abs/;
 
-use File::Slurp;
-
 BEGIN { use_ok('Bio::Grid::Run::SGE::Index::Range'); }
 
 my $td = tempdir( CLEANUP => 1 );

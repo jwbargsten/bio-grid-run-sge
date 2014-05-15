@@ -5,7 +5,6 @@ use Mouse;
 use warnings;
 use strict;
 use Carp;
-use File::Slurp qw(:std);
 use File::Spec::Functions qw/catfile/;
 use Bio::Gonzales::Util::File qw/slurpc open_on_demand/;
 use Bio::Grid::Run::SGE::Util qw/my_glob MSG/;
@@ -14,6 +13,7 @@ use Bio::Grid::Run::SGE::Log::Notify::Jabber;
 use Bio::Grid::Run::SGE::Log::Notify::Mail;
 use Bio::Grid::Run::SGE::Config;
 use Bio::Gonzales::Util::Cerial;
+use Path::Tiny;
 
 use Sys::Hostname;
 
@@ -108,14 +108,13 @@ sub analyse {
   my %jobs_with_log;
 
   my $file_regex = qr/$job_name\.l$job_id\.\d+/;
-  my @files      = read_dir($log_dir);
+  my @files      = path($log_dir)->children($file_regex);
   my $STD_JOB_CMD;
   my $STD_WORKER_WD;
   my %err_hosts;
   for my $log_file (@files) {
-    next unless ( $log_file =~ /$file_regex/ );
     my $log_data
-      = Bio::Grid::Run::SGE::Log::Worker->new( log_file => catfile( $log_dir, $log_file ) )->log_data;
+      = Bio::Grid::Run::SGE::Log::Worker->new( log_file => $log_file )->log_data;
 
     # we cannot read the log file, skip report. these jobs will be taken care of further down
     unless ($log_data) {
