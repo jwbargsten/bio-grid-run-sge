@@ -7,6 +7,7 @@ use 5.010;
 use List::MoreUtils qw/firstidx/;
 use Getopt::Std;
 use Bio::Grid::Run::SGE::Util::ExampleEnvironment;
+use String::ShellQuote;
 
 my $tq = Thread::Task::Concurrent->new(
   task          => \&sys_redirect,
@@ -67,7 +68,7 @@ if ($opt_t) {
   };
 
   my @cmd = ( $opt_S, @ARGV );
-  sys_redirect( \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} );
+  sys_redirect( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ]);
 
 }
 say "Your job $job_id (\"$name\") has been submitted";
