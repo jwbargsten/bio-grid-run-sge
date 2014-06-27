@@ -35,7 +35,7 @@ if ($opt_t) {
 
   $tq->start;
   for ( my $i = $range[0]; $i <= $range[1]; $i++ ) {
-    %ENV = %{
+    my %cl_env = %{
       get_array_env(
         {
           stdout_dir => $out_dir,
@@ -48,13 +48,14 @@ if ($opt_t) {
         }
       )
     };
+    %ENV = ( %cl_env, %ENV, );
     my @cmd = ( $opt_S, @ARGV );
-    $tq->enqueue( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
+    $tq->enqueue( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
 
   }
   $tq->join;
 } else {
-  %ENV = %{
+  my %cl_env = %{
     get_single_env(
       {
         stdout_dir => $out_dir,
@@ -66,9 +67,10 @@ if ($opt_t) {
       }
     )
   };
+  %ENV = ( %cl_env, %ENV, );
 
   my @cmd = ( $opt_S, @ARGV );
-  sys_redirect( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ]);
+  sys_redirect( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
 
 }
 say "Your job $job_id (\"$name\") has been submitted";
@@ -76,11 +78,12 @@ say "Your job $job_id (\"$name\") has been submitted";
 sub sys_redirect {
   my ($item) = @_;
 
-  my ( $cmd_args, $stdout_f, $stderr_f ) = @$item;
+  my ( $cmd_args, $cl_env, $stdout_f, $stderr_f ) = @$item;
   my $cmd_args_sq = shell_quote(@$cmd_args);
   my $stdout_f_sq = shell_quote($stdout_f);
   my $stderr_f_sq = shell_quote($stderr_f);
 
+  %ENV = ( %$cl_env, %ENV, );
   system("$cmd_args_sq 2>$stderr_f_sq >$stdout_f_sq") == 0 or die "system $cmd_args_sq failed: $?";
   return;
 }
