@@ -37,7 +37,7 @@ sub formatdb {
     my @reference_files = expand_path( @{ $c{db_seq_files} } );
 
     my @formatdb_cmd = (
-        '/home/opt/blast/bin/formatdb', '-i', @reference_files, '-l', $c{db_name} . '.formatdb.log',
+        'formatdb', '-i', @reference_files, '-l', $c{db_name} . '.formatdb.log',
         '-p', ( $c{db_type} =~ /^p/i ? 'T' : 'F' ),
         '-o', 'F', '-a', 'F', '-n', $c{db_name},
     );

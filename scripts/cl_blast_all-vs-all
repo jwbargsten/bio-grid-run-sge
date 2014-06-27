@@ -68,7 +68,7 @@ sub do_worker_stuff {
 
     my $out_f     = $result_prefix . ".blast";
     my @blast_cmd = (
-        "/home/opt/blast/bin/blastall",
+        "blastall",
         '-a', '1',    # one thread
         "-i", $seq_file,    #input
         "-o",  $out_f,       #output
