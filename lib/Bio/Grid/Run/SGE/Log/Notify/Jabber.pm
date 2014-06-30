@@ -13,10 +13,11 @@ use 5.010;
 
 # VERSION
 
-has jid      => ( is => 'rw', required => 1 );
-has password => ( is => 'rw', required => 1 );
-has dest     => ( is => 'rw', required => 1 );
-has type     => ( is => 'rw', default  => 'normal' );
+has jid       => ( is => 'rw', required => 1 );
+has password  => ( is => 'rw', required => 1 );
+has dest      => ( is => 'rw', required => 1 );
+has type      => ( is => 'rw', default  => 'normal' );
+has wait_time => ( is => 'rw', default  => 7 );
 
 sub notify {
   my $self = shift;
@@ -37,10 +38,10 @@ sub notify {
       MSG( "Connected as " . $con->jid );
       MSG("Sending message to $dest");
       my $immsg = AnyEvent::XMPP::IM::Message->new(
-        to      => $dest,
+        to => $dest,
         #subject => $info->{subject},
-        body    => $info->{message},
-        type    => $self->type,
+        body => $info->{message},
+        type => $self->type,
       );
       $immsg->send($con);
     },
@@ -53,7 +54,7 @@ sub notify {
   );
 
   $con->connect;
-  my $timer = AnyEvent->timer( after => 7, cb => sub { MSG "close"; $j->broadcast; } );
+  my $timer = AnyEvent->timer( after => $self->wait_time, cb => sub { MSG "close"; $j->broadcast; } );
 
   $j->wait;
   $con->disconnect;
