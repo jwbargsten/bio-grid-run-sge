@@ -52,7 +52,7 @@ if ($opt_t) {
         }
       )
     };
-    %ENV = (  %ENV, %cl_env,);
+    %ENV = (   %cl_env,%ENV,);
     my @cmd = ( $opt_S, @ARGV );
     $tq->enqueue( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
 
