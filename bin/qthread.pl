@@ -1,5 +1,4 @@
 #!/usr/bin/env perl
-use forks;
 use Thread::Task::Concurrent qw(tmsg);
 use warnings;
 use strict;
