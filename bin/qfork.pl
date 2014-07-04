@@ -9,12 +9,6 @@ use Getopt::Std;
 use Bio::Grid::Run::SGE::Util::ExampleEnvironment;
 use String::ShellQuote;
 
-my $max_instances = $ENV{QFORK_NUM_PROCESSES} // 4;
-say STDERR "NUMBER OF PROCESSES: $max_instances";
-my $tq = Thread::Task::Concurrent->new(
-  task          => \&sys_redirect,
-  max_instances => $max_instances,
-);
 
 my $hold_idx = firstidx { $_ eq '-hold_jid' } @ARGV;
 splice @ARGV, $hold_idx, 2 if ( $hold_idx >= 0 );
@@ -30,6 +24,14 @@ my $out_dir = $opt_o;
 my $job_id = time;
 
 if ($opt_t) {
+
+  my $max_instances = $ENV{BGRS_NUM_PROCESSES} // 4;
+  say STDERR "NUMBER OF PROCESSES: $max_instances";
+  my $tq = Thread::Task::Concurrent->new(
+    task          => \&sys_redirect,
+    max_instances => $max_instances,
+  );
+
   #stepsize is not implemented
   $opt_t =~ s/:\d+$//;
 
@@ -50,7 +52,7 @@ if ($opt_t) {
         }
       )
     };
-    %ENV = ( %cl_env, %ENV, );
+    %ENV = (  %ENV, %cl_env,);
     my @cmd = ( $opt_S, @ARGV );
     $tq->enqueue( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
 
@@ -69,7 +71,7 @@ if ($opt_t) {
       }
     )
   };
-  %ENV = ( %cl_env, %ENV, );
+  %ENV = ( %ENV,%cl_env,  );
 
   my @cmd = ( $opt_S, @ARGV );
   sys_redirect( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
@@ -85,7 +87,7 @@ sub sys_redirect {
   my $stdout_f_sq = shell_quote($stdout_f);
   my $stderr_f_sq = shell_quote($stderr_f);
 
-  %ENV = ( %$cl_env, %ENV, );
+  %ENV = (  %ENV, %$cl_env,);
   system("$cmd_args_sq 2>$stderr_f_sq >$stdout_f_sq") == 0 or die "system $cmd_args_sq failed: $?";
   return;
 }
