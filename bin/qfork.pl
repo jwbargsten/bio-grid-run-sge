@@ -1,6 +1,4 @@
 #!/usr/bin/env perl
-use forks;
-use Thread::Task::Concurrent qw(tmsg);
 use warnings;
 use strict;
 use 5.010;
@@ -8,7 +6,7 @@ use List::MoreUtils qw/firstidx/;
 use Getopt::Std;
 use Bio::Grid::Run::SGE::Util::ExampleEnvironment;
 use String::ShellQuote;
-
+use Parallel::ForkManager;
 
 my $hold_idx = firstidx { $_ eq '-hold_jid' } @ARGV;
 splice @ARGV, $hold_idx, 2 if ( $hold_idx >= 0 );
@@ -27,17 +25,13 @@ if ($opt_t) {
 
   my $max_instances = $ENV{BGRS_NUM_PROCESSES} // 4;
   say STDERR "NUMBER OF PROCESSES: $max_instances";
-  my $tq = Thread::Task::Concurrent->new(
-    task          => \&sys_redirect,
-    max_instances => $max_instances,
-  );
+  my $pm = Parallel::ForkManager->new($max_instances);
 
   #stepsize is not implemented
   $opt_t =~ s/:\d+$//;
 
   my @range = split( /-/, $opt_t );
 
-  $tq->start;
   for ( my $i = $range[0]; $i <= $range[1]; $i++ ) {
     my %cl_env = %{
       get_array_env(
@@ -52,12 +46,15 @@ if ($opt_t) {
         }
       )
     };
-    %ENV = (   %cl_env,%ENV,);
+    %ENV = ( %cl_env, %ENV, );
     my @cmd = ( $opt_S, @ARGV );
-    $tq->enqueue( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
+    my $pid = $pm->start and next;
 
+    sys_redirect( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
+
+    $pm->finish;    # Terminates the child process
   }
-  $tq->join;
+  $pm->wait_all_children;
 } else {
   my %cl_env = %{
     get_single_env(
@@ -71,7 +68,7 @@ if ($opt_t) {
       }
     )
   };
-  %ENV = ( %ENV,%cl_env,  );
+  %ENV = ( %ENV, %cl_env, );
 
   my @cmd = ( $opt_S, @ARGV );
   sys_redirect( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
@@ -87,7 +84,7 @@ sub sys_redirect {
   my $stdout_f_sq = shell_quote($stdout_f);
   my $stderr_f_sq = shell_quote($stderr_f);
 
-  %ENV = (  %ENV, %$cl_env,);
+  %ENV = ( %ENV, %$cl_env, );
   system("$cmd_args_sq 2>$stderr_f_sq >$stdout_f_sq") == 0 or die "system $cmd_args_sq failed: $?";
   return;
 }
