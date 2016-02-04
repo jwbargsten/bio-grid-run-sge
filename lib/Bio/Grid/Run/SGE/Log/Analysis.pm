@@ -29,7 +29,7 @@ has _log                => ( is => 'rw', default    => sub { [] } );
 has _node_log           => ( is => 'rw', default    => sub { [] } );
 has _cmd_script         => ( is => 'rw', default    => sub { [] } );
 has num_jobs            => ( is => 'rw', default    => 0 );
-has num_jobs_skipped            => ( is => 'rw', default    => 0 );
+has num_jobs_skipped    => ( is => 'rw', default    => 0 );
 has num_jobs_failed     => ( is => 'rw', default    => 0 );
 
 sub _build_failed_update_file {
@@ -113,8 +113,7 @@ sub analyse {
   my $STD_WORKER_WD;
   my %err_hosts;
   for my $log_file (@files) {
-    my $log_data
-      = Bio::Grid::Run::SGE::Log::Worker->new( log_file => $log_file )->log_data;
+    my $log_data = Bio::Grid::Run::SGE::Log::Worker->new( log_file => $log_file )->log_data;
 
     # we cannot read the log file, skip report. these jobs will be taken care of further down
     unless ($log_data) {
@@ -205,8 +204,8 @@ sub analyse {
   $self->num_jobs($num_jobs);
   $self->num_jobs_skipped($num_skipped);
 
-  $self->_report_log(($num_jobs || 'n/a') . " jobs in total");
-  $self->_report_log('(' .$num_skipped . " jobs did not need to run again)") if($num_skipped);
+  $self->_report_log( ( $num_jobs || 'n/a' ) . " jobs in total" );
+  $self->_report_log( '(' . $num_skipped . " jobs did not need to run again)" ) if ($num_skipped);
   if ($no_jobs_ran_at_all) {
     $self->_report_log("obviously, no jobs were run at all");
     $self->num_jobs_failed($num_jobs);
@@ -295,24 +294,30 @@ sub notify {
   );
 
   if ( $c->{notify}{mail} ) {
-    my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new( $c->{notify}{mail} );
-    for ( my $i = 0; $i < $self->attempts; $i++ ) {
-      # notify function returns 1 on error. If this happens, try more times
-      last unless ( $n->notify( \%info ) );
+    $c->{notify}{mail} = [ $c->{notify}{mail} ] unless ( ref $c->{notify}{mail} );
+    for my $mail ( @{ $c->{notify}{mail} } ) {
+      my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new($mail);
+      for ( my $i = 0; $i < $self->attempts; $i++ ) {
+        # notify function returns 1 on error. If this happens, try more times
+        last unless ( $n->notify( \%info ) );
+      }
     }
   }
   if ( $c->{notify}{jabber} ) {
-    my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new( $c->{notify}{jabber} );
-    for ( my $i = 0; $i < $self->attempts; $i++ ) {
-      # notify function returns 1 on error. If this happens, try more times
-      last unless ( $n->notify( \%info ) );
+    $c->{notify}{jabber} = [ $c->{notify}{jabber} ] unless ( ref $c->{notify}{jabber} );
+    for my $jid ( @{ $c->{notify}{jabber} } ) {
+      my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new($jid);
+      for ( my $i = 0; $i < $self->attempts; $i++ ) {
+        # notify function returns 1 on error. If this happens, try more times
+        last unless ( $n->notify( \%info ) );
+      }
     }
   }
   if ( $c->{notify}{script} ) {
     my $bin = $c->{notify}{script};
-    if(-x $bin) {
+    if ( -x $bin ) {
       open my $fh, '|-', $bin or die "Can't pipe to script >> $bin <<: $!";
-      say $fh jfreeze(\%info);
+      say $fh jfreeze( \%info );
       close $fh;
     }
   }
@@ -355,9 +360,9 @@ sub from_address {
 }
 
 sub gen_report {
-  my ($self, $full) = @_;
+  my ( $self, $full ) = @_;
   my @node_report = @{ $self->_node_log };
-  @node_report = ( @node_report[ 0 .. 13 ], '...' ) if (@node_report > 17  && !$full);
+  @node_report = ( @node_report[ 0 .. 13 ], '...' ) if ( @node_report > 17 && !$full );
   return join( "\n", $self->subject(), '', @{ $self->_log }, '', @node_report ) . "\n";
 }
 

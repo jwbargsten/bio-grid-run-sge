@@ -1,17 +1,15 @@
 #!/usr/bin/env perl
-use forks;
-use Thread::Task::Concurrent qw(tmsg);
 use warnings;
 use strict;
 use 5.010;
 use List::MoreUtils qw/firstidx/;
 use Getopt::Std;
 use Bio::Grid::Run::SGE::Util::ExampleEnvironment;
+use Parallel::ForkManager;
 
-my $tq = Thread::Task::Concurrent->new(
-  task          => \&sys_redirect,
-  max_instances => 8,
-);
+my $MAX_PROCESSES = 8;
+my $pm = Parallel::ForkManager->new($MAX_PROCESSES);
+
 
 my $hold_idx = firstidx { $_ eq '-hold_jid' } @ARGV;
 splice @ARGV, $hold_idx, 2 if ( $hold_idx >= 0 );
@@ -32,8 +30,8 @@ if ($opt_t) {
 
   my @range = split( /-/, $opt_t );
 
-  $tq->start;
   for ( my $i = $range[0]; $i <= $range[1]; $i++ ) {
+    $pm->start and next;
     %ENV = %{
       get_array_env(
         {
@@ -48,10 +46,11 @@ if ($opt_t) {
       )
     };
     my @cmd = ( $opt_S, @ARGV );
-    $tq->enqueue( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
+    sys_redirect( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
+    $pm->finish;
 
   }
-  $tq->join;
+  $pm->wait_all_children;
 } else {
   %ENV = %{
     get_single_env(
@@ -67,7 +66,7 @@ if ($opt_t) {
   };
 
   my @cmd = ( $opt_S, @ARGV );
-  sys_redirect( \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} );
+  sys_redirect( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ]);
 
 }
 say "Your job $job_id (\"$name\") has been submitted";

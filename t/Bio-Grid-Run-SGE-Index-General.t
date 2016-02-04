@@ -7,9 +7,11 @@ use File::Spec::Functions qw/catfile/;
 use Bio::Gonzales::Seq::IO qw/faslurp/;
 use Carp;
 
-BEGIN { use_ok('Bio::Grid::Run::SGE::Index::General'); }
+BEGIN { 
+  $Bio::Gonzales::Seq::WIDTH = 60;
+  use_ok('Bio::Grid::Run::SGE::Index::General');
+}
 
-$Bio::Gonzales::Seq::IO::WIDTH = 60;
 
 my $td = tempdir( CLEANUP => 1 );
 
