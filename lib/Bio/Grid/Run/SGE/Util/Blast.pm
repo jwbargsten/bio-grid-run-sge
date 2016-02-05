@@ -17,7 +17,52 @@ our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
 
 @EXPORT      = qw();
 %EXPORT_TAGS = ();
-@EXPORT_OK   = qw(formatdb);
+@EXPORT_OK   = qw(formatdb makeblastdb);
+
+sub makeblastdb {
+    my ($c) = @_;
+    my %c = validate(
+        @_,
+        {
+            db_seq_files => 1,
+            db_name   => 1,
+            db_type   => 1,
+            db_dir    => 1,
+            no_prompt => { default => undef },
+        }
+    );
+
+    INFO( Dumper \%c );
+    # formatdb
+    my @reference_files = expand_path( @{ $c{db_seq_files} } );
+
+    my @makeblastdb_cmd = (
+        'makeblastdb', '-in', join(" ", @reference_files), '-logfile', $c{db_name} . '.makeblastdb.log',
+        '-dbtype', ( $c{db_type} =~ /^p/i ? 'prot' : 'nucl' ),
+        '-out', $c{db_name},
+        '-title', $c{db_name},
+    );
+
+    INFO( 'makeblastdb: ', @makeblastdb_cmd );
+    if ( $c{no_prompt} || prompt( "run makeblastdb? [yn]", 'y' )  eq 'y') {
+
+        my $olddir    = fastcwd;
+        my $blast_dir = expand_path( $c{db_dir} );
+        my_mkdir($blast_dir) if ( !-e $blast_dir );
+
+        die unless ( -d $blast_dir );
+
+        chdir $blast_dir;
+        INFO "creating blast db in " . fastcwd;
+
+        my_sys @makeblastdb_cmd;
+
+        chdir $olddir;
+        return 1;
+    } else {
+        return;
+    }
+}
 
 sub formatdb {
     my ($c) = @_;
@@ -62,7 +107,6 @@ sub formatdb {
         return;
     }
 }
-
 1;
 
 __END__
