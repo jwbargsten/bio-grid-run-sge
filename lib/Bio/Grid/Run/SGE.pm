@@ -129,15 +129,6 @@ sub run_job {
 sub _run_master {
   my ( $c, $a ) = @_;
 
-  #initiate master
-  if ( $a->{pre_task} ) {
-    confess "pre_task is no code reference"
-      if ( ref $a->{pre_task} ne 'CODE' );
-  } else {
-    INFO("USING DEFAULT MASTER TASK");
-    $a->{pre_task} = \&_default_pre_task;
-  }
-
   # CHANGE TO THE WORKING DIR
 
   # we are already in the dir of the config file, if given. (see further up)
@@ -155,6 +146,16 @@ sub _run_master {
     $c->{working_dir} = File::Spec->rel2abs($working_dir);
     chdir $working_dir;
   }
+
+  #initiate master
+  if ( $a->{pre_task} ) {
+    confess "pre_task is no code reference"
+      if ( ref $a->{pre_task} ne 'CODE' );
+  } else {
+    INFO("USING DEFAULT MASTER TASK");
+    $a->{pre_task} = \&_default_pre_task;
+  }
+
 
   #get a Bio::Grid::Run::SGE::Master object
   my $m = $a->{pre_task}->($c);

@@ -14,7 +14,7 @@ run_job(
     task => sub {
       my ( $c, $result_prefix, $seq_file ) = @_;
 
-      my @cmd = qw(/home/opt/blast/bin/blastall);
+      my @cmd = qw(blastall);
       push @cmd, @{ $c->{args} };
       push @cmd, '-i', $seq_file;
       push @cmd, '-o', $result_prefix . '.blast';

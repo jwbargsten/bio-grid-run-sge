@@ -248,7 +248,7 @@ sub run {
   };
 
   if ( $exit != 0 ) {
-    confess "[SUBMIT_ERROR] Could not submit job:\n$stdout$stderr";
+    die "[SUBMIT_ERROR] Could not submit job:\n$stdout$stderr";
   }
 
   $stdout =~ /^Your\s*job(-array)?\s*(\d+)/;

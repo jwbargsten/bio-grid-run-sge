@@ -5,11 +5,8 @@ use 5.010;
 use List::MoreUtils qw/firstidx/;
 use Getopt::Std;
 use Bio::Grid::Run::SGE::Util::ExampleEnvironment;
+use String::ShellQuote;
 use Parallel::ForkManager;
-
-my $MAX_PROCESSES = 8;
-my $pm = Parallel::ForkManager->new($MAX_PROCESSES);
-
 
 my $hold_idx = firstidx { $_ eq '-hold_jid' } @ARGV;
 splice @ARGV, $hold_idx, 2 if ( $hold_idx >= 0 );
@@ -25,14 +22,18 @@ my $out_dir = $opt_o;
 my $job_id = time;
 
 if ($opt_t) {
+
+  my $max_instances = $ENV{BGRS_NUM_PROCESSES} // 4;
+  say STDERR "NUMBER OF PROCESSES: $max_instances";
+  my $pm = Parallel::ForkManager->new($max_instances);
+
   #stepsize is not implemented
   $opt_t =~ s/:\d+$//;
 
   my @range = split( /-/, $opt_t );
 
   for ( my $i = $range[0]; $i <= $range[1]; $i++ ) {
-    $pm->start and next;
-    %ENV = %{
+    my %cl_env = %{
       get_array_env(
         {
           stdout_dir => $out_dir,
@@ -45,14 +46,17 @@ if ($opt_t) {
         }
       )
     };
+    %ENV = ( %cl_env, %ENV, );
     my @cmd = ( $opt_S, @ARGV );
-    sys_redirect( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
-    $pm->finish;
+    my $pid = $pm->start and next;
 
+    sys_redirect( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
+
+    $pm->finish;    # Terminates the child process
   }
   $pm->wait_all_children;
 } else {
-  %ENV = %{
+  my %cl_env = %{
     get_single_env(
       {
         stdout_dir => $out_dir,
@@ -64,9 +68,10 @@ if ($opt_t) {
       }
     )
   };
+  %ENV = ( %ENV, %cl_env, );
 
   my @cmd = ( $opt_S, @ARGV );
-  sys_redirect( [ \@cmd, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ]);
+  sys_redirect( [ \@cmd, \%cl_env, $ENV{SGE_STDOUT_PATH}, $ENV{SGE_STDERR_PATH} ] );
 
 }
 say "Your job $job_id (\"$name\") has been submitted";
@@ -74,11 +79,12 @@ say "Your job $job_id (\"$name\") has been submitted";
 sub sys_redirect {
   my ($item) = @_;
 
-  my ( $cmd_args, $stdout_f, $stderr_f ) = @$item;
+  my ( $cmd_args, $cl_env, $stdout_f, $stderr_f ) = @$item;
   my $cmd_args_sq = shell_quote(@$cmd_args);
   my $stdout_f_sq = shell_quote($stdout_f);
   my $stderr_f_sq = shell_quote($stderr_f);
 
+  %ENV = ( %ENV, %$cl_env, );
   system("$cmd_args_sq 2>$stderr_f_sq >$stdout_f_sq") == 0 or die "system $cmd_args_sq failed: $?";
   return;
 }
