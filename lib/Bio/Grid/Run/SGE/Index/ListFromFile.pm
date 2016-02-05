@@ -7,7 +7,7 @@ use strict;
 use Carp;
 use Storable qw/retrieve/;
 use List::MoreUtils qw/uniq/;
-use Bio::Gonzales::Util::File qw/openod/;
+use Bio::Gonzales::Util::File qw/gonzopen/;
 
 extends 'Bio::Grid::Run::SGE::Index::List';
 
@@ -25,7 +25,7 @@ around 'create' => sub {
 
   my @elements;
   for my $f (@$files) {
-    my $fh = openod( $f, '<' );
+    my $fh = gonzopen( $f, '<' );
     while (<$fh>) {
       chomp;
       push @elements, $_;
