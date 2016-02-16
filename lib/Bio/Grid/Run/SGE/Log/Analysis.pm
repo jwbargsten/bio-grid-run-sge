@@ -5,7 +5,7 @@ use Mouse;
 use warnings;
 use strict;
 use Carp;
-use File::Spec::Functions qw/catfile/;
+use File::Spec::Functions qw/catfile rel2abs/;
 use Bio::Gonzales::Util::File qw/slurpc open_on_demand/;
 use Bio::Grid::Run::SGE::Util qw/my_glob MSG/;
 use Bio::Grid::Run::SGE::Log::Worker;
@@ -144,7 +144,7 @@ sub analyse {
       $self->_report_crashed_job(
         $log_data,
         {
-          log_file => catfile( $log_dir, $log_file ),
+          log_file => rel2abs($log_file ),
           job_cmd  => $job_cmd,
           range    => $range,
           job_id   => $job_id,
@@ -160,7 +160,7 @@ sub analyse {
       $self->_report_error_job(
         $log_data,
         {
-          log_file => catfile( $log_dir, $log_file ),
+          log_file => rel2abs($log_file ),
           job_cmd  => $job_cmd,
           job_id   => $job_id,
           err_file => $log_data->{err},
