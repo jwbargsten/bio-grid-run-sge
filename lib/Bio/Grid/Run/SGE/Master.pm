@@ -15,7 +15,7 @@ use Bio::Grid::Run::SGE::Iterator;
 use Bio::Grid::Run::SGE::Util qw/my_glob my_sys expand_path my_mkdir expand_path_rel/;
 use Cwd qw/fastcwd/;
 use Clone qw/clone/;
-use Data::Printer colored => 1, use_prototypes => 0;
+use Data::Printer colored => 1, use_prototypes => 0, rc_file => '';
 use Bio::Gonzales::Util::Cerial;
 use Capture::Tiny 'capture';
 use Config;
@@ -340,6 +340,7 @@ EOS
 
   if ( exists $ENV{PERL5LIB} ) {
     my @inc_dirs = split( /\Q$Config{path_sep}\E/, $ENV{PERL5LIB} );
+    @inc_dirs = grep { $_ } @inc_dirs;
     print $fh "use lib ('" . join( "','", @inc_dirs ) . "');\n"
       if ( @inc_dirs && @inc_dirs > 0 );
   }

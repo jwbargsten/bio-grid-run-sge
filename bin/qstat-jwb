@@ -5,7 +5,7 @@ use warnings;
 use strict;
 use 5.010;
 
-use Data::Printer;
+use Data::Printer rc_file => '';
 
 my @cmd = ( 'qstat', '-pri', '-xml', @ARGV );
 
