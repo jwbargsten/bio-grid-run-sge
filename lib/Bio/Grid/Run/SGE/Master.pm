@@ -59,8 +59,8 @@ has 'job_id' => ( is => 'rw' );
 
 has 'mode' => ( is => 'rw', default => 'None' );
 
-has '_worker_config_file' => ( is => 'rw', lazy_build => 1 );
-has '_worker_env_script'  => ( is => 'rw', lazy_build => 1 );
+has 'worker_config_file' => ( is => 'rw', lazy_build => 1 );
+has 'worker_env_script'  => ( is => 'rw', lazy_build => 1 );
 has 'submit_bin'          => ( is => 'rw', default    => 'qsub' );
 has 'submit_params'       => ( is => 'rw', default    => sub { [] }, isa => 'ArrayRef[Str]' );
 has 'perl_bin'            => ( is => 'rw', default    => $Config{perlpath} );
@@ -185,23 +185,23 @@ sub to_string {
     }
   }
   $c{parts} = $self->_calculate_number_of_parts;
-  my $string = p \%c;
+  my $string = p(\%c);
 
   return "CONFIGURATION:\n" . $string;
 }
 
 sub _prepare {
   my ($self) = @_;
-  $self->_worker_config_file;
+  $self->worker_config_file;
   $self->iterator;
 }
 
-sub _build__worker_config_file {
+sub _build_worker_config_file {
   my $self = shift;
   return File::Spec->catfile( $self->tmp_dir, join( '', $self->job_name, '.config.dat' ) );
 }
 
-sub _build__worker_env_script {
+sub _build_worker_env_script {
   my $self = shift;
   return File::Spec->catfile( $self->tmp_dir, join( '.', 'env', $self->job_name, 'pl' ) );
 }
@@ -234,7 +234,7 @@ sub run {
   $self->_prepare;
 
   my $tmp_dir     = $self->tmp_dir;
-  my $config_file = $self->_worker_config_file;
+  my $config_file = $self->worker_config_file;
 
   my ( $cmd_args, $c ) = $self->cache_config($config_file);
   my $cmd = join ' ', @$cmd_args;
@@ -300,6 +300,8 @@ sub cache_config {
   my $iter = $self->iterator;
 
   $self->parts( $self->_calculate_number_of_parts );
+  # make sure the variable is build before %{$self} 
+  $self->worker_env_script;
 
   my %c = ( %{$self}, num_comb => $iter->num_comb, extra => $self->extra );
   delete $c{iterator};
@@ -315,7 +317,7 @@ sub cache_config {
   push @cmd, '-o', $self->stdout_dir;
   push @cmd, @{ $self->submit_params };
 
-  my $worker_env_script_cmd = $self->prepare_worker_env_script($config_file);
+  my $worker_env_script_cmd = $self->write_worker_env_script($config_file);
   push @cmd, $worker_env_script_cmd, @{ $self->cmd }, '--worker', $config_file;
 
   my $cmd = join ' ', @cmd;
@@ -327,10 +329,10 @@ sub cache_config {
   return ( \@cmd, \%c );
 }
 
-sub prepare_worker_env_script {
+sub write_worker_env_script {
   my ( $self, $config_file ) = @_;
 
-  open my $fh, '>', $self->_worker_env_script or confess "Can't open filehandle: $!";
+  open my $fh, '>', $self->worker_env_script or confess "Can't open filehandle: $!";
   print $fh <<EOS;
 #!/usr/bin/env perl
 use warnings;
@@ -346,17 +348,17 @@ EOS
   }
 
   print $fh <<'EOF';
-  my $cmd = shift;
-  unless ( my $return = do $cmd ) {
-    warn "could not parse $cmd\n$@\n\n$!" if $@;
-    warn "couldn't execute $cmd\n$!" unless defined $return;
-    warn "couldn't run $cmd" unless $return;
-  }
-  exit;
+my $cmd = shift;
+unless ( my $return = do $cmd ) {
+  warn "could not parse $cmd\n$@\n\n$!" if $@;
+  warn "couldn't execute $cmd\n$!" unless defined $return;
+  warn "couldn't run $cmd" unless $return;
+}
+exit;
 EOF
   $fh->close;
 
-  return $self->_worker_env_script;
+  return $self->worker_env_script;
 }
 
 sub queue_post_task {
@@ -372,7 +374,7 @@ sub queue_post_task {
 
   #push @cmd, @{ $self->submit_params };
 
-  my @post_cmd = ( $self->_worker_env_script, @{ $self->cmd }, '--post_task', $self->job_id, $config_file );
+  my @post_cmd = ( $self->worker_env_script, @{ $self->cmd }, '--post_task', $self->job_id, $config_file );
 
   $self->save_config;
   say STDERR "post processing: " . join( " ", @cmd, @hold_arg, @post_cmd );

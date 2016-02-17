@@ -366,7 +366,7 @@ Example configuration:
     'qsub -t 1-1 -S perl -N xml_munge1 -e /WORKING_DIR/xml_munge1.tmp/err -o /WORKING_DIR/xml_munge1.tmp/out /WORKING_DIR/xml_munge1.tmp/env.xml_munge1.pl WORKING_DIR/bin/cl_xml_munge.pl --worker /WORKING_DIR/xml_munge1.tmp/xml_munge1.config.dat',
   'job_id' => '325541.1',
   'cmd'    => [ '/WORKING_DIR/bin/cl_xml_munge.pl' ],
-  '_worker_config_file' =>
+  'worker_config_file' =>
     '/WORKING_DIR/xml_munge1.tmp/xml_munge1.config.dat',
   'prefix_output_dirs' => '1',
   'perl_bin'           => '/home/cafa/perl5/perlbrew/perls/perl-5.16.3/bin/perl',
@@ -401,8 +401,8 @@ Here is a list of reserved configuration options:
     job_name => ...,
     job_id => ...,
     mode => ...,
-    _worker_config_file => ...,
-    _worker_env_script => ...,
+    worker_config_file => ...,
+    worker_env_script => ...,
     submit_bin => ...,
     submit_params => ...,
     perl_bin => ...,

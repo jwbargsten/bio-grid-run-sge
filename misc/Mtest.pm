@@ -69,8 +69,8 @@ has 'job_id' => ( is => 'rw' );
 
 has 'method' => ( is => 'rw', required => 1 );
 
-has '_worker_config_file' => ( is => 'rw', lazy_build => 1 );
-has '_worker_env_script'  => ( is => 'rw', lazy_build => 1 );
+has 'worker_config_file' => ( is => 'rw', lazy_build => 1 );
+has 'worker_env_script'  => ( is => 'rw', lazy_build => 1 );
 has 'submit_bin'          => ( is => 'rw', default    => 'qsub' );
 has 'submit_params'       => ( is => 'rw', default    => sub { [] }, isa => 'ArrayRef[Str]' );
 has 'perl_bin'            => ( is => 'rw', default    => $Config{perlpath} );

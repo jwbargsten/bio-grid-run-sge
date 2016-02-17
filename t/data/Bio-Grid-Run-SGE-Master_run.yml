@@ -1,5 +1,6 @@
 ---
-_worker_config_file: /tmp/lXGH5pgD5r/cluster_job.tmp/cluster_job.config.dat
+worker_config_file: /tmp/lXGH5pgD5r/cluster_job.tmp/cluster_job.config.dat
+worker_env_script: /tmp/lXGH5pgD5r/cluster_job.tmp/env.cluster_job.pl
 cmd:
 - t/Bio-Grid-Run-SGE-Master.script.pl
 extra:

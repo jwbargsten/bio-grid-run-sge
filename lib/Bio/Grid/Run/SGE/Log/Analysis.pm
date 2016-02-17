@@ -404,6 +404,7 @@ sub _write_update_script {
   push @post_log_cmd, '-N', join( '_', 'ERRpost', $c->{job_id}, $c->{job_name} );
   push @post_log_cmd, '-e', $c->{stderr_dir};
   push @post_log_cmd, '-o', $c->{stdout_dir};
+  push @post_log_cmd, $c->{worker_env_script};
   push @post_log_cmd, @{ $c->{cmd} }, '--node_log', $c->{job_id}, $self->config_file;
 
   my $update_log_file = $self->failed_update_file;
