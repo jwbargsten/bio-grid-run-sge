@@ -11,6 +11,8 @@ use File::Spec::Functions qw/catfile/;
 use Data::Dumper;
 use List::Util qw/min/;
 use Path::Tiny;
+use JSON::XS qw/encode_json/;
+use Bio::Gonzales::Util qw/sys_pipe/;
 
 use base 'Exporter';
 our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
@@ -27,6 +29,7 @@ our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
   delete_by_regex
   expand_path
   my_mkdir
+  my_sys_pipe
   concat_files
   my_sys_non_fatal
   my_glob_non_fatal
@@ -111,6 +114,11 @@ sub expand_path_rel {
 sub my_sys {
   INFO( join( " ", "RUNNING", @_ ) );
   system(@_) == 0 or confess "system " . join( " ", @_ ) . " FAILED: $? ## $!";
+}
+
+sub my_sys_pipe {
+  INFO( join( " ", "RUNNING", encode_json(\@_) ) );
+  sys_pipe(@_);
 }
 
 sub my_sys_non_fatal {
