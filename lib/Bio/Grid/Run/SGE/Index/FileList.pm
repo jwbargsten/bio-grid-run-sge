@@ -7,7 +7,7 @@ use strict;
 use Carp;
 use Storable qw/retrieve/;
 use List::MoreUtils qw/uniq/;
-
+use Bio::Grid::Run::SGE::Util qw/glob_list/;
 extends 'Bio::Grid::Run::SGE::Index::List';
 
 # VERSION
@@ -18,7 +18,7 @@ around 'create' => sub {
 
   my $file_name_elements = shift;
 
-  my $file_name_elements_abs = $self->_glob_input_files($file_name_elements);
+  my $file_name_elements_abs = glob_list($file_name_elements);
 
   return $self->$orig($file_name_elements_abs);
 };

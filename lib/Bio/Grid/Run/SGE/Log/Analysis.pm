@@ -294,7 +294,7 @@ sub notify {
   );
 
   if ( $c->{notify}{mail} ) {
-    $c->{notify}{mail} = [ $c->{notify}{mail} ] unless ( ref $c->{notify}{mail} );
+    $c->{notify}{mail} = [ $c->{notify}{mail} ] unless ( ref $c->{notify}{mail} eq 'ARRAY' );
     for my $mail ( @{ $c->{notify}{mail} } ) {
       my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new($mail);
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
@@ -304,7 +304,7 @@ sub notify {
     }
   }
   if ( $c->{notify}{jabber} ) {
-    $c->{notify}{jabber} = [ $c->{notify}{jabber} ] unless ( ref $c->{notify}{jabber} );
+    $c->{notify}{jabber} = [ $c->{notify}{jabber} ] unless ( ref $c->{notify}{jabber} eq 'ARRAY' );
     for my $jid ( @{ $c->{notify}{jabber} } ) {
       my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new($jid);
       for ( my $i = 0; $i < $self->attempts; $i++ ) {

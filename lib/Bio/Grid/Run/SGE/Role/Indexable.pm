@@ -86,22 +86,6 @@ sub _check_range_fatal {
     return;
 }
 
-sub _glob_input_files {
-    my ( $self, $input_files ) = @_;
-
-    my @abs_input_files;
-    for my $glob_pattern (@$input_files) {
-        my @files = my_glob($glob_pattern);
-        next unless ( @files > 0 );
-        for my $f (@files) {
-            confess "Couldn't find/access $f" unless ( -f $f || -d $f);
-        }
-        push @abs_input_files, @files;
-    }
-    confess "INDEX: no input files found" unless ( @abs_input_files > 0 );
-
-    return \@abs_input_files;
-}
 
 1;
 

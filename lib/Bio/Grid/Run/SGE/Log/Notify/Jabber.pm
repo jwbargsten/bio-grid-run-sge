@@ -16,13 +16,13 @@ use 5.010;
 has jid       => ( is => 'rw', required => 1 );
 has password  => ( is => 'rw', required => 1 );
 has dest      => ( is => 'rw', required => 1 );
-has type      => ( is => 'rw', default  => 'normal' );
+has type      => ( is => 'rw', default  => 'chat' );
 has wait_time => ( is => 'rw', default  => 7 );
 
 sub notify {
   my $self = shift;
   my $info = shift;
-  my $dest = $self->dest;
+  my $dest = ref $self->dest eq 'ARRAY' ? $self->dest : [ $self->dest ];
 
   my $j = AnyEvent->condvar;
   my $msg_send_failed;
@@ -36,14 +36,16 @@ sub notify {
     session_ready => sub {
       my ($con) = @_;
       MSG( "Connected as " . $con->jid );
-      MSG("Sending message to $dest");
-      my $immsg = AnyEvent::XMPP::IM::Message->new(
-        to => $dest,
-        #subject => $info->{subject},
-        body => $info->{message},
-        type => $self->type,
-      );
-      $immsg->send($con);
+      for my $d (@$dest) {
+        MSG("Sending message to $d");
+        my $immsg = AnyEvent::XMPP::IM::Message->new(
+          to => $d,
+          subject => $info->{subject},
+          body => $info->{message},
+          type => $self->type,
+        );
+        $immsg->send($con);
+      }
     },
     error => sub {
       my ( $con, $error ) = @_;

@@ -21,6 +21,7 @@ our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
 @EXPORT_OK   = qw(
   my_glob
   my_sys
+  glob_list
   MSG
   INFO
   delete_by_regex
@@ -50,6 +51,23 @@ sub my_glob_non_fatal {
   @expanded_dirs = map { File::Spec->rel2abs($_) } @expanded_dirs;
 
   return wantarray ? @expanded_dirs : ( shift @expanded_dirs );
+}
+
+sub glob_list {
+    my $input_files = shift;
+
+    my @abs_input_files;
+    for my $glob_pattern (@$input_files) {
+        my @files = my_glob($glob_pattern);
+        next unless ( @files > 0 );
+        for my $f (@files) {
+            confess "Couldn't find/access $f" unless ( -f $f || -d $f);
+        }
+        push @abs_input_files, @files;
+    }
+    confess "INDEX: no input files found" unless ( @abs_input_files > 0 );
+
+    return \@abs_input_files;
 }
 
 sub my_glob {
@@ -125,7 +143,7 @@ sub my_mkdir {
 }
 
 sub INFO {
-  print STDERR "\t" . join( " ", @_ ), "\n";
+  print STDERR "  " . join( " ", @_ ), "\n";
   return;
 }
 

@@ -17,6 +17,7 @@ use Cwd qw/fastcwd/;
 use Clone qw/clone/;
 use Data::Printer colored => 1, use_prototypes => 0, rc_file => '';
 use Bio::Gonzales::Util::Cerial;
+use List::MoreUtils qw/uniq/;
 use Capture::Tiny 'capture';
 use Config;
 use FindBinNew qw($Bin $Script);
@@ -61,11 +62,11 @@ has 'mode' => ( is => 'rw', default => 'None' );
 
 has 'worker_config_file' => ( is => 'rw', lazy_build => 1 );
 has 'worker_env_script'  => ( is => 'rw', lazy_build => 1 );
-has 'submit_bin'          => ( is => 'rw', default    => 'qsub' );
-has 'submit_params'       => ( is => 'rw', default    => sub { [] }, isa => 'ArrayRef[Str]' );
-has 'perl_bin'            => ( is => 'rw', default    => $Config{perlpath} );
-has 'working_dir'         => ( is => 'rw', default    => '.' );
-has 'prefix_output_dirs'  => ( is => 'rw', default    => 1 );
+has 'submit_bin'         => ( is => 'rw', default    => 'qsub' );
+has 'submit_params'      => ( is => 'rw', default    => sub { [] }, isa => 'ArrayRef[Str]' );
+has 'perl_bin'           => ( is => 'rw', default    => $Config{perlpath} );
+has 'working_dir'        => ( is => 'rw', default    => '.' );
+has 'prefix_output_dirs' => ( is => 'rw', default    => 1 );
 
 # arguments for the cluster script
 has 'args' => ( is => 'rw', isa => 'ArrayRef[Str]', default => sub { [] } );
@@ -185,7 +186,7 @@ sub to_string {
     }
   }
   $c{parts} = $self->_calculate_number_of_parts;
-  my $string = p(\%c);
+  my $string = p( \%c );
 
   return "CONFIGURATION:\n" . $string;
 }
@@ -300,7 +301,7 @@ sub cache_config {
   my $iter = $self->iterator;
 
   $self->parts( $self->_calculate_number_of_parts );
-  # make sure the variable is build before %{$self} 
+  # make sure the variable is build before %{$self}
   $self->worker_env_script;
 
   my %c = ( %{$self}, num_comb => $iter->num_comb, extra => $self->extra );
@@ -337,14 +338,24 @@ sub write_worker_env_script {
 #!/usr/bin/env perl
 use warnings;
 use strict;
+use List::MoreUtils qw/uniq/;
 
 EOS
 
   if ( exists $ENV{PERL5LIB} ) {
     my @inc_dirs = split( /\Q$Config{path_sep}\E/, $ENV{PERL5LIB} );
-    @inc_dirs = grep { $_ } @inc_dirs;
+    @inc_dirs = grep {$_} @inc_dirs;
     print $fh "use lib ('" . join( "','", @inc_dirs ) . "');\n"
       if ( @inc_dirs && @inc_dirs > 0 );
+  }
+
+  if ( exists $ENV{PATH} ) {
+    my @dirs = uniq( grep {$_} split( /\Q$Config{path_sep}\E/, $ENV{PATH} ));
+    my $path = "'" . join( "','", @dirs ) . "'";
+    print $fh <<EOS;
+my \@path = grep { \$_ } uniq(split(/:/, \$ENV{PATH}), $path);
+\$ENV{PATH} = join(":", \@path);
+EOS
   }
 
   print $fh <<'EOF';

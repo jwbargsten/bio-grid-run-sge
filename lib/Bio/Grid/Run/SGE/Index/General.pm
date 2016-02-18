@@ -9,6 +9,7 @@ use Carp;
 use List::Util qw/sum/;
 use List::MoreUtils qw/uniq/;
 use Bio::Gonzales::Util::File qw/open_on_demand is_newer/;
+use Bio::Grid::Run::SGE::Util qw/glob_list INFO/;
 use Data::Dumper;
 use Cwd qw/fastcwd/;
 
@@ -48,14 +49,14 @@ sub create {
 
   confess 'No write permission, set write_flag to write' unless ( $self->writeable );
 
-  my $abs_input_files = $self->_glob_input_files($input_files);
+  my $abs_input_files = glob_list($input_files);
 
   if ( $self->_is_indexed($abs_input_files) ) {
-    print STDERR "SKIPPING INDEXING STEP, THE INDEX IS UP TO DATE\n";
+    INFO("SKIPPING INDEXING STEP, THE INDEX IS UP TO DATE");
     return $self;
   }
 
-  print STDERR "INDEXING ....\n";
+  INFO( "INDEXING ....");
 
   my $chunk_size = $self->chunk_size;
 

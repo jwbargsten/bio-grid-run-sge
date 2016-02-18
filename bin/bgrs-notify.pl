@@ -24,7 +24,7 @@ if ( $opt{process} ) {
   }
 }
 
-my $msg = shift // 'Wollte nur mal Hallo sagen!';
+my $msg = $ENV{bgrs_notify_msg} // shift // 'Wollte nur mal Hallo sagen!';
 say STDERR $msg if ( $opt{verbose} );
 
 if ( $msg eq '-' ) {
@@ -34,7 +34,7 @@ if ( $msg eq '-' ) {
 my $attempts = 3;
 my $c        = Bio::Grid::Run::SGE::Config->new->config;
 
-$c->{notify}{jabber} = [ $c->{notify}{jabber} ] unless ( ref $c->{notify}{jabber} );
+$c->{notify}{jabber} = [ $c->{notify}{jabber} ] unless ( ref $c->{notify}{jabber} eq 'ARRAY' );
 for my $jid ( @{ $c->{notify}{jabber} } ) {
 
   my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new($jid);
