@@ -12,7 +12,7 @@ use Data::Dumper;
 use List::Util qw/min/;
 use Path::Tiny;
 use JSON::XS qw/encode_json/;
-use Bio::Gonzales::Util qw/sys_pipe/;
+use Bio::Gonzales::Util qw/sys_fmt/;
 
 use base 'Exporter';
 our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
@@ -57,20 +57,20 @@ sub my_glob_non_fatal {
 }
 
 sub glob_list {
-    my $input_files = shift;
+  my $input_files = shift;
 
-    my @abs_input_files;
-    for my $glob_pattern (@$input_files) {
-        my @files = my_glob($glob_pattern);
-        next unless ( @files > 0 );
-        for my $f (@files) {
-            confess "Couldn't find/access $f" unless ( -f $f || -d $f);
-        }
-        push @abs_input_files, @files;
+  my @abs_input_files;
+  for my $glob_pattern (@$input_files) {
+    my @files = my_glob($glob_pattern);
+    next unless ( @files > 0 );
+    for my $f (@files) {
+      confess "Couldn't find/access $f" unless ( -f $f || -d $f );
     }
-    confess "INDEX: no input files found" unless ( @abs_input_files > 0 );
+    push @abs_input_files, @files;
+  }
+  confess "INDEX: no input files found" unless ( @abs_input_files > 0 );
 
-    return \@abs_input_files;
+  return \@abs_input_files;
 }
 
 sub my_glob {
@@ -117,8 +117,13 @@ sub my_sys {
 }
 
 sub my_sys_pipe {
-  INFO( join( " ", "RUNNING", encode_json(\@_) ) );
-  sys_pipe(@_);
+  my $cmd = sys_fmt(@_);
+  return my_sys($cmd);
+}
+
+sub my_sys_pipe_non_fatal {
+  my $cmd = sys_fmt(@_);
+  return my_sys_non_fatal($cmd);
 }
 
 sub my_sys_non_fatal {
