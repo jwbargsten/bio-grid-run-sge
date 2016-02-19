@@ -9,8 +9,9 @@ use Carp;
 use Bio::Grid::Run::SGE::Master;
 use Bio::Grid::Run::SGE::Worker;
 use Bio::Grid::Run::SGE::Config;
-use Bio::Grid::Run::SGE::Util qw/my_glob my_sys INFO delete_by_regex my_sys_non_fatal my_sys_pipe my_sys_pipe_non_fatal/;
+use Bio::Grid::Run::SGE::Util qw/my_glob delete_by_regex/;
 use Bio::Grid::Run::SGE::Log::Analysis;
+use Bio::Grid::Run::SGE::Job;
 use Data::Dumper;
 
 use IO::Prompt::Tiny qw/prompt/;
@@ -20,15 +21,18 @@ use Getopt::Long::Descriptive;
 use Bio::Gonzales::Util::Cerial qw/yslurp/;
 use Cwd qw/fastcwd/;
 use Scalar::Util qw/blessed/;
+use Bio::Gonzales::Util::Log;
 
 use base 'Exporter';
 
 our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
 # VERSION
 
-@EXPORT      = qw(run_job INFO my_sys my_sys_non_fatal my_glob my_sys_pipe my_sys_pipe_non_fatal);
+@EXPORT      = qw(run_job my_glob job);
 %EXPORT_TAGS = ();
 @EXPORT_OK   = qw();
+
+sub job { state $j = Bio::Grid::Run::SGE::Job->new() };
 
 sub run_job {
   my $a;
@@ -152,13 +156,14 @@ sub _run_master {
     confess "pre_task is no code reference"
       if ( ref $a->{pre_task} ne 'CODE' );
   } else {
-    INFO("USING DEFAULT MASTER TASK");
+    job->log->info("USING DEFAULT MASTER TASK");
     $a->{pre_task} = \&_default_pre_task;
   }
 
 
   #get a Bio::Grid::Run::SGE::Master object
   my $m = $a->{pre_task}->($c);
+  $m->log(job()->log);
 
   # if no master object is returned, just take the configuration
   # (it might have changed during the invocation of pre_task)
@@ -166,7 +171,7 @@ sub _run_master {
     unless ( $m && blessed($m) eq 'Bio::Grid::Run::SGE::Master' );
 
   #confirm
-  INFO( $m->to_string );
+  job->log->info( $m->to_string );
   if ( $c->{no_prompt} || prompt( "run job? [yn]", 'y' ) eq 'y' ) {
     $m->run;
   }
@@ -204,7 +209,7 @@ sub _run_post_task {
   $c->{job_id} = $job_id;
 
   # create all summary files and restart scripts
-  my $log = Bio::Grid::Run::SGE::Log::Analysis->new( c => $c, config_file => $config_file );
+  my $log = Bio::Grid::Run::SGE::Log::Analysis->new( c => $c, config_file => $config_file , log => job->log);
   $log->analyse;
   $log->write;
   $log->notify;
@@ -219,7 +224,7 @@ sub _run_post_task {
 sub _default_pre_task {
   my ($c) = @_;
 
-  return Bio::Grid::Run::SGE::Master->new($c);
+  return Bio::Grid::Run::SGE::Master->new(%$c, log => job->log);
 }
 
 1;

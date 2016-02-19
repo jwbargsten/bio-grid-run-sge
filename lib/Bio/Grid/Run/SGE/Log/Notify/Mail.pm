@@ -7,13 +7,14 @@ use strict;
 use Carp;
 
 use 5.010;
-use Bio::Grid::Run::SGE::Util qw/my_glob MSG/;
+use Bio::Grid::Run::SGE::Util qw/my_glob/;
 
 # VERSION
 use Mail::Sendmail;
 
 has smtp_server => ( is => 'rw' );
 has 'dest'      => ( is => 'rw' );
+has log => (is => 'rw', 'required' => 1);
 
 sub notify {
   my $self = shift;
@@ -28,13 +29,13 @@ sub notify {
   );
 
   my $something_failed;
-  MSG("Sending mail to $mail.");
+  $self->log->info("Sending mail to $mail.");
   unless ( sendmail(%mail) ) {
     $something_failed = 1;
-    MSG($Mail::Sendmail::error);
+    $self->log->info($Mail::Sendmail::error);
   }
 
-  MSG( "Mail log says:\n", $Mail::Sendmail::log );
+  $self->log->info( "Mail log says:\n", $Mail::Sendmail::log );
 
   return $something_failed;
 }

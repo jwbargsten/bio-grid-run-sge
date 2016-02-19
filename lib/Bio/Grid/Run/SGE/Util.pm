@@ -12,7 +12,7 @@ use Data::Dumper;
 use List::Util qw/min/;
 use Path::Tiny;
 use JSON::XS qw/encode_json/;
-use Bio::Gonzales::Util qw/sys_fmt/;
+use Bio::Gonzales::Util::Log;
 
 use base 'Exporter';
 our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
@@ -22,23 +22,19 @@ our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
 %EXPORT_TAGS = ();
 @EXPORT_OK   = qw(
   my_glob
-  my_sys
   glob_list
-  MSG
-  INFO
   delete_by_regex
   expand_path
   my_mkdir
-  my_sys_pipe
-  my_sys_pipe_non_fatal
   concat_files
-  my_sys_non_fatal
   my_glob_non_fatal
   timer
   expand_path_rel
   poll_interval
   result_files
 );
+
+our $LOG =  Bio::Gonzales::Util::Log->new();
 
 sub my_glob_non_fatal {
   my (@dirs) = @_;
@@ -112,40 +108,6 @@ sub expand_path_rel {
   return wantarray ? @expanded : ( shift @expanded );
 }
 
-sub my_sys {
-  INFO( join( " ", "RUNNING", @_ ) );
-  system(@_) == 0 or confess "system " . join( " ", @_ ) . " FAILED: $? ## $!";
-}
-
-sub my_sys_pipe {
-  my $cmd = sys_fmt(@_);
-  return my_sys($cmd);
-}
-
-sub my_sys_pipe_non_fatal {
-  my $cmd = sys_fmt(@_);
-  return my_sys_non_fatal($cmd);
-}
-
-sub my_sys_non_fatal {
-  INFO( join( " ", "RUNNING", @_ ) );
-  if ( system(@_) == 0 ) {
-    return 1;
-  } else {
-    carp "\nSYSTEM " . join( " ", @_ ) . " FAILED: $?\n";
-    INFO( "\nSYSTEM " . join( " ", @_ ) . " FAILED: $?\n" );
-
-    if ( $? == -1 ) {
-      print "failed to execute: $!\n";
-    } elsif ( $? & 127 ) {
-      printf "child died with signal %d, %s coredump\n", ( $? & 127 ), ( $? & 128 ) ? 'with' : 'without';
-    } else {
-      printf "child exited with value %d\n", $? >> 8;
-    }
-
-    return;
-  }
-}
 
 sub my_mkdir {
   my ($path) = @_;
@@ -154,15 +116,6 @@ sub my_mkdir {
   if ($@) {
     confess "Couldn't create $path: $@";
   }
-}
-
-sub INFO {
-  print STDERR "  " . join( " ", @_ ), "\n";
-  return;
-}
-
-sub MSG {
-  print STDERR @_, "\n";
 }
 
 sub delete_by_regex {
@@ -211,7 +164,7 @@ sub concat_files {
   $concat_fh->close;
 
   for my $f (@to_be_unlinked) {
-    INFO("Deleting $f");
+    $LOG->info("Deleting $f");
     unlink $f;
   }
 
@@ -273,14 +226,10 @@ Bio::Grid::Run::SGE::Util - Utility functions for Bio::Grid::Run::SGE
 
     use Bio::Grid::Run::SGE::Util qw(
       my_glob
-      my_sys
-      MSG
-      INFO
       delete_by_regex
       expand_path
       my_mkdir
       concat_files
-      my_sys_non_fatal
       my_glob_non_fatal
       timer
       expand_path_rel
@@ -320,35 +269,10 @@ with '~'.
 
 Expands the '~' at the beginning of a path to the home directory.
 
-=item B<< my_sys(@command) >>
-
-=item B<< my_sys($command) >>
-
-Runs command eiter as array or as simple string (see also L<system>) and dies
-if something goes wrong.
-
-=item B<< my_sys_non_fatal(@command) >>
-
-=item B<< my_sys_non_fatal($command) >>
-
-Runs command eiter as array or as simple string (see also L<system>) and gives
-a warning message if something goes wrong.
-
-It returns C<undef> is something went wrong and C<1/true> if the exit code of
-the program was ok.
-
 =item B<< my_mkdir($path) >>
 
 Creates C<$path> and dies if something goes wrong. See also
 L<File::Path/mkpath>.
-
-=item B<< INFO(@text) >>
-
-Prints C<@text> concatenated by spaces indented by a <TAB> to standard error.
-
-=item B<< MSG(@text) >>
-
-Just prints C<@text> to standard error.
 
 =item B<< delete_by_regex($dir, $file_regex, $simulate) >>
 

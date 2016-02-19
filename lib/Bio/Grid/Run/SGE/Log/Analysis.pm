@@ -7,7 +7,7 @@ use strict;
 use Carp;
 use File::Spec::Functions qw/catfile rel2abs/;
 use Bio::Gonzales::Util::File qw/slurpc open_on_demand/;
-use Bio::Grid::Run::SGE::Util qw/my_glob MSG/;
+use Bio::Grid::Run::SGE::Util qw/my_glob/;
 use Bio::Grid::Run::SGE::Log::Worker;
 use Bio::Grid::Run::SGE::Log::Notify::Jabber;
 use Bio::Grid::Run::SGE::Log::Notify::Mail;
@@ -31,6 +31,7 @@ has _cmd_script         => ( is => 'rw', default    => sub { [] } );
 has num_jobs            => ( is => 'rw', default    => 0 );
 has num_jobs_skipped    => ( is => 'rw', default    => 0 );
 has num_jobs_failed     => ( is => 'rw', default    => 0 );
+has log                 => ( is => 'rw', required   => 1 );
 
 sub _build_failed_update_file {
   my ($self) = @_;
@@ -84,7 +85,7 @@ sub _report_cmd {
 sub analyse {
   my ($self) = @_;
 
-  MSG("Creating node log.");
+  $self->log->info("Creating node log.");
 
   my $c           = $self->c;
   my $config_file = $self->config_file;
@@ -144,7 +145,7 @@ sub analyse {
       $self->_report_crashed_job(
         $log_data,
         {
-          log_file => rel2abs($log_file ),
+          log_file => rel2abs($log_file),
           job_cmd  => $job_cmd,
           range    => $range,
           job_id   => $job_id,
@@ -160,7 +161,7 @@ sub analyse {
       $self->_report_error_job(
         $log_data,
         {
-          log_file => rel2abs($log_file ),
+          log_file => rel2abs($log_file),
           job_cmd  => $job_cmd,
           job_id   => $job_id,
           err_file => $log_data->{err},
@@ -296,7 +297,7 @@ sub notify {
   if ( $c->{notify}{mail} ) {
     $c->{notify}{mail} = [ $c->{notify}{mail} ] unless ( ref $c->{notify}{mail} eq 'ARRAY' );
     for my $mail ( @{ $c->{notify}{mail} } ) {
-      my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new($mail);
+      my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new( %$mail, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
         # notify function returns 1 on error. If this happens, try more times
         last unless ( $n->notify( \%info ) );
@@ -306,7 +307,7 @@ sub notify {
   if ( $c->{notify}{jabber} ) {
     $c->{notify}{jabber} = [ $c->{notify}{jabber} ] unless ( ref $c->{notify}{jabber} eq 'ARRAY' );
     for my $jid ( @{ $c->{notify}{jabber} } ) {
-      my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new($jid);
+      my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new( %$jid, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
         # notify function returns 1 on error. If this happens, try more times
         last unless ( $n->notify( \%info ) );

@@ -4,7 +4,7 @@ use Data::Dumper;
 use Test::More skip_all => 1;
 use Storable;
 use File::Temp qw/tempdir/;
-use Bio::Grid::Run::SGE::Util qw/my_glob my_sys expand_path my_mkdir/;
+use Bio::Grid::Run::SGE::Util qw/my_glob expand_path my_mkdir/;
 use File::Compare qw/compare/;
 use Bio::Grid::Run::SGE::Master;
 use Bio::Gonzales::Seq::IO qw/faslurp faspew/;

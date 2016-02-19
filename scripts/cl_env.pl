@@ -16,7 +16,7 @@ run_job(
     task => sub {
       my ( $c, $result_prefix, $idx_item ) = @_;
 
-      INFO "Running $idx_item->[0] -> $result_prefix";
+      job->log->info("Running $idx_item->[0] -> $result_prefix");
       jspew( $result_prefix . ".env.json",  \%ENV );
       jspew( $result_prefix . ".item.json", $idx_item );
       sleep 3;

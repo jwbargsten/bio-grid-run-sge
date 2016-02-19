@@ -12,7 +12,7 @@ use File::Spec;
 use Data::Dumper;
 use Bio::Grid::Run::SGE::Index;
 use Bio::Grid::Run::SGE::Iterator;
-use Bio::Grid::Run::SGE::Util qw/my_glob my_sys expand_path my_mkdir expand_path_rel/;
+use Bio::Grid::Run::SGE::Util qw/my_glob expand_path my_mkdir expand_path_rel/;
 use Cwd qw/fastcwd/;
 use Clone qw/clone/;
 use Data::Printer colored => 1, use_prototypes => 0, rc_file => '';
@@ -54,6 +54,7 @@ has 'extra' => ( is => 'rw', default => sub { {} } );
 # one can supply parts or combinations per job
 has 'parts' => ( is => 'rw', default => 0 );
 has 'combinations_per_job' => ( is => 'rw' );
+has 'log' => (is => 'rw', required => 1);
 
 has 'job_name' => ( is => 'rw', default => 'cluster_job' );
 has 'job_id' => ( is => 'rw' );
@@ -174,6 +175,7 @@ sub to_string {
   $self->_prepare;
   my %c = %{$self};
   delete $c{iterator};
+  delete $c{log};
   $c{input} = clone( $self->input );
 
   for my $in ( @{ $c{input} } ) {
@@ -220,7 +222,7 @@ sub _build_iterator {
   my $i = 0;
   for my $in ( @{ $self->input } ) {
     $in->{idx_file} = $self->generate_idx_file_name( $i++ );
-    push @indices, Bio::Grid::Run::SGE::Index->new( %{$in}, writeable => 1 );
+    push @indices, Bio::Grid::Run::SGE::Index->new( %{$in}, writeable => 1, log => $self->log );
     $indices[-1]->create( $in->{elements} );
   }
 
@@ -306,6 +308,7 @@ sub cache_config {
 
   my %c = ( %{$self}, num_comb => $iter->num_comb, extra => $self->extra );
   delete $c{iterator};
+  delete $c{log};
 
   my ( $from, $to ) = ( 1, $self->parts );
   $to = $self->test if ( $self->test && $self->test > 0 && $to > 7 );
@@ -400,8 +403,8 @@ sub queue_post_task {
 
   chmod 0755, $post_cmd_file;
 
-  my_sys( @cmd, @hold_arg, @post_cmd );
-
+  system( @cmd, @hold_arg, @post_cmd ) == 0 or confess "post task system failed: $?";
+  
   return;
 }
 

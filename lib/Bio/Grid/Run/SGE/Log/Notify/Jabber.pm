@@ -3,7 +3,7 @@ package Bio::Grid::Run::SGE::Log::Notify::Jabber;
 use Mouse;
 use AnyEvent;
 use AnyEvent::XMPP::IM::Connection;
-use Bio::Grid::Run::SGE::Util qw/my_glob MSG/;
+use Bio::Grid::Run::SGE::Util qw/my_glob/;
 
 use warnings;
 use strict;
@@ -13,6 +13,7 @@ use 5.010;
 
 # VERSION
 
+has log => (is => 'rw', required => 1);
 has jid       => ( is => 'rw', required => 1 );
 has password  => ( is => 'rw', required => 1 );
 has dest      => ( is => 'rw', required => 1 );
@@ -35,9 +36,9 @@ sub notify {
   $con->reg_cb(
     session_ready => sub {
       my ($con) = @_;
-      MSG( "Connected as " . $con->jid );
+      $self->log->info( "Connected as " . $con->jid );
       for my $d (@$dest) {
-        MSG("Sending message to $d");
+        $self->log->info("Sending message to $d");
         my $immsg = AnyEvent::XMPP::IM::Message->new(
           to => $d,
           subject => $info->{subject},
@@ -56,7 +57,7 @@ sub notify {
   );
 
   $con->connect;
-  my $timer = AnyEvent->timer( after => $self->wait_time, cb => sub { MSG "close"; $j->broadcast; } );
+  my $timer = AnyEvent->timer( after => $self->wait_time, cb => sub { $self->log->info("close"); $j->broadcast; } );
 
   $j->wait;
   $con->disconnect;

@@ -9,8 +9,10 @@ use File::Spec::Functions qw/catfile rel2abs/;
 use Cwd qw/fastcwd/;
 use lib 't/lib';
 use Test::Util qw/rewrite_shebang/;
+use Bio::Gonzales::Util::Log;
 
 BEGIN { use_ok('Bio::Grid::Run::SGE::Master'); }
+our $LOG =  Bio::Gonzales::Util::Log->new();
 
 my $td = tempdir( CLEANUP => 1 );
 my $qsub_cmd = rewrite_shebang( 't/Bio-Grid-Run-SGE-Master.qsub.pl', "$td/Bio-Grid-Run-SGE-Master.qsub.pl" );
@@ -33,6 +35,7 @@ my $m = Bio::Grid::Run::SGE::Master->new(
   use_stdin        => 1,
   result_on_stdout => 1,
   mode             => 'Dummy',
+  log => $LOG,
 );
 
 my ( $cmd, $c ) = $m->cache_config("$td/master_config");

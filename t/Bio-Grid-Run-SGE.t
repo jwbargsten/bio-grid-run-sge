@@ -2,12 +2,14 @@ use warnings;
 use Test::More;
 use Data::Dumper;
 use Carp;
+use Bio::Gonzales::Util::Log;
 
 BEGIN {
   use_ok('Bio::Grid::Run::SGE');
 
   use_ok("Bio::Grid::Run::SGE::Log::Analysis");
 }
+our $LOG =  Bio::Gonzales::Util::Log->new();
 
 my $d;
 sub TEST { $d = $_[0]; }
@@ -60,6 +62,7 @@ EOF
       tmp_dir     => $dir,
       stderr_dir  => $dir
     },
+    log => $LOG,
     config_file => 'aaa'
   );
 }

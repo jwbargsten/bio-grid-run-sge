@@ -6,7 +6,7 @@ use strict;
 use File::Spec;
 use Config::Auto;
 use Data::Dumper;
-use Bio::Grid::Run::SGE::Util qw/my_glob my_sys expand_path my_mkdir expand_path_rel/;
+use Bio::Grid::Run::SGE::Util qw/my_glob expand_path my_mkdir expand_path_rel/;
 use Cwd;
 use Config;
 use Bio::Gonzales::Util::Cerial;
