@@ -30,6 +30,7 @@ our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
   expand_path
   my_mkdir
   my_sys_pipe
+  my_sys_pipe_non_fatal
   concat_files
   my_sys_non_fatal
   my_glob_non_fatal

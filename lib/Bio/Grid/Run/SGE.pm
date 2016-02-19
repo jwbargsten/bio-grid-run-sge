@@ -9,7 +9,7 @@ use Carp;
 use Bio::Grid::Run::SGE::Master;
 use Bio::Grid::Run::SGE::Worker;
 use Bio::Grid::Run::SGE::Config;
-use Bio::Grid::Run::SGE::Util qw/my_glob my_sys INFO delete_by_regex my_sys_non_fatal my_sys_pipe/;
+use Bio::Grid::Run::SGE::Util qw/my_glob my_sys INFO delete_by_regex my_sys_non_fatal my_sys_pipe my_sys_pipe_non_fatal/;
 use Bio::Grid::Run::SGE::Log::Analysis;
 use Data::Dumper;
 
@@ -26,7 +26,7 @@ use base 'Exporter';
 our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
 # VERSION
 
-@EXPORT      = qw(run_job INFO my_sys my_sys_non_fatal my_glob my_sys_pipe);
+@EXPORT      = qw(run_job INFO my_sys my_sys_non_fatal my_glob my_sys_pipe my_sys_pipe_non_fatal);
 %EXPORT_TAGS = ();
 @EXPORT_OK   = qw();
 
