@@ -35,14 +35,14 @@ our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
 sub job { state $j = Bio::Grid::Run::SGE::Job->new() };
 
 sub run_job {
-  my $a;
+  my $cl_args;
   if ( @_ == 1 && ref $_[0] eq 'HASH' ) {
-    $a = $_[0];
+    $cl_args = $_[0];
   } else {
-    $a = {@_};
+    $cl_args = {@_};
   }
 
-  confess "main task missing" unless ( $a->{task} );
+  confess "main task missing" unless ( $cl_args->{task} );
 
   my ( $opt, $usage ) = describe_options(
     "%c %o [<config_file>] [<arg1> <arg2> ... <argn>]\n"
@@ -58,16 +58,7 @@ sub run_job {
     [ 'node_log=i',       "rerun the nodelog stuff" ],
   );
 
-  if ( $opt->help ) {
-    print "STANDARD USAGE INFO OF Bio::Grid::Run::SGE\n";
-    print( $usage->text );
-    if ( $a->{usage} ) {
-      print "\n\nCLUSTER SCRIPT USAGE INFO\n";
-      my $script_usage = ref $a->{usage} eq 'CODE' ? $a->{usage}->() : $a->{usage};
-      print $script_usage;
-    }
-    exit;
-  }
+  usage($usage, $cl_args->{usage}) if ( $opt->help );
 
   my $config_file;
   # the script might be invoked with the no_config_file option
@@ -92,7 +83,7 @@ sub run_job {
     _run_worker(
       {
         config_file => $config_file,
-        a           => $a,
+        cl_args           => $cl_args,
         range       => $opt->range,
         job_id      => $opt->job_id,
         id          => $opt->id
@@ -109,7 +100,7 @@ sub run_job {
     #POST TASK
 
     die "no config file given" unless ( -f $config_file );
-    _run_post_task( $config_file, $opt->post_task, $a->{post_task} );
+    _run_post_task( $config_file, $opt->post_task, $cl_args->{post_task} );
 
   } else {
     #MASTER
@@ -120,10 +111,10 @@ sub run_job {
       job_config_file      => $config_file,
       opt                  => $opt,
       cluster_script_args  => \@script_args,
-      cluster_script_setup => $a
+      cluster_script_setup => $cl_args
     )->hide_notify_settings->config;
 
-    _run_master( $c, $a );
+    _run_master( $c, $cl_args );
 
   }
 
@@ -131,7 +122,7 @@ sub run_job {
 }
 
 sub _run_master {
-  my ( $c, $a ) = @_;
+  my ( $c, $cl_args ) = @_;
 
   # CHANGE TO THE WORKING DIR
 
@@ -152,17 +143,17 @@ sub _run_master {
   }
 
   #initiate master
-  if ( $a->{pre_task} ) {
+  if ( $cl_args->{pre_task} ) {
     confess "pre_task is no code reference"
-      if ( ref $a->{pre_task} ne 'CODE' );
+      if ( ref $cl_args->{pre_task} ne 'CODE' );
   } else {
     job->log->info("USING DEFAULT MASTER TASK");
-    $a->{pre_task} = \&_default_pre_task;
+    $cl_args->{pre_task} = \&_default_pre_task;
   }
 
 
   #get a Bio::Grid::Run::SGE::Master object
-  my $m = $a->{pre_task}->($c);
+  my $m = $cl_args->{pre_task}->($c);
   $m->log(job()->log);
 
   # if no master object is returned, just take the configuration
@@ -179,7 +170,7 @@ sub _run_master {
 
 sub _run_worker {
   my $args = shift;
-  my %worker_args = ( config_file => $args->{config_file}, task => $args->{a}{task} );
+  my %worker_args = ( config_file => $args->{config_file}, task => $args->{cl_args}{task} );
   if ( defined( $args->{range} ) ) {
     my @range = split /[-,]/, $args->{range};
 
@@ -226,6 +217,19 @@ sub _default_pre_task {
 
   return Bio::Grid::Run::SGE::Master->new(%$c, log => job->log);
 }
+
+  sub usage {
+    my $usage = shift;
+    my $custom_usage = shift;
+    print "STANDARD USAGE INFO OF Bio::Grid::Run::SGE\n";
+    print( $usage->text );
+    if ( $custom_usage ) {
+      print "\n\nCLUSTER SCRIPT USAGE INFO\n";
+      my $script_usage = ref $custom_usage eq 'CODE' ? $custom_usage->() : $custom_usage;
+      print $script_usage;
+    }
+    exit;
+  }
 
 1;
 
