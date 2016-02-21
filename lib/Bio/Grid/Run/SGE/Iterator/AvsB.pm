@@ -55,7 +55,7 @@ sub next_comb {
     return $self->cur_comb;
 }
 
-sub start {
+sub range {
     my ( $self, $idx_range ) = @_;
 
     if ( $self->_iterating ) {

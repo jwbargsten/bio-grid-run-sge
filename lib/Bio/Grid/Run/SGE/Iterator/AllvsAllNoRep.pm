@@ -18,7 +18,7 @@ has cur_comb_idx => ( is => 'rw', lazy_build => 1 );
 
 with 'Bio::Grid::Run::SGE::Role::Iterable';
 
-sub start {
+sub range {
     my ( $self, $idx_range ) = @_;
 
     if ( $self->_iterating ) {
@@ -150,7 +150,7 @@ Bio::Grid::Run::SGE::Iterator::AllvsAllNoRep - Runs all elements of one index ag
 
     # run through all combinations
     my ($from, $to) = (0, $it->num_comb - 1);
-    $it->start( [ $from, $to]  );
+    $it->range( [ $from, $to]  );
 
     my @result;
     my $i = $from;

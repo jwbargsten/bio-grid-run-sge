@@ -11,11 +11,11 @@ has indices => (is => 'rw', required => 1, isa => 'ArrayRef');
 has _iterating => (is => 'rw');
 has _range => (is => 'rw');
 
-requires qw/cur_comb_idx peek_comb_idx num_comb cur_comb next_comb start/;
+requires qw/cur_comb_idx peek_comb_idx num_comb cur_comb next_comb range/;
 
 sub BUILD { }
 
-before start => sub{
+before range => sub{
     my ($self, $idx_range) = @_;
     
     confess "range problems: [" . ( $idx_range ? join( ",", @$idx_range ) : $idx_range ) . "]"
@@ -36,7 +36,7 @@ before start => sub{
 #};
     #create indices input files newer or if not exist
 
-#sub start { my ($self, $num_parts, $idx_range) = @_; }
+#sub range { my ($self, $num_parts, $idx_range) = @_; }
 
 
 1;

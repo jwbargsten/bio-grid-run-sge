@@ -34,7 +34,7 @@ sub next_comb {
 
 sub num_comb { return 1 }
 
-sub start {
+sub range {
   my ($self) = @_;
 
   $self->cur_comb_idx(0);

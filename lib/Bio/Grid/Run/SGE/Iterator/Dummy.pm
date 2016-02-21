@@ -31,7 +31,7 @@ sub num_comb {
     return $self->indices->[0]->num_elem;
 }
 
-sub start {
+sub range {
 
 
 }

@@ -47,7 +47,7 @@ sub next_comb {
     return $self->cur_comb;
 }
 
-sub start {
+sub range {
     my ( $self, $idx_range ) = @_;
 
     if ( $self->_iterating ) {
@@ -121,7 +121,7 @@ __END__
 
     # run through all combinations
     my ($from, $to) = (0, $it->num_comb - 1);
-    $it->start( [ $from, $to]  );
+    $it->range( [ $from, $to]  );
 
     my @result;
     my $i = $from;
