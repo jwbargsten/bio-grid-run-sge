@@ -26,55 +26,7 @@ has 'opt' => (
     };
   }
 );
-has 'rc_file' => (
-  is      => 'rw',
-  default => sub {
-    "$ENV{HOME}/.bio-grid-run-sge.conf.yml";
-  }
-);
 
-has _old_rc_files => (
-  is      => 'rw',
-  default => sub {
-    [ "$ENV{HOME}/.comp_bio_cluster.config", "$ENV{HOME}/.bio-grid-run-sge.conf", ];
-  }
-);
-
-
-# hide notify settings, because they may contain passwords
-sub hide_notify_settings {
-  my $self = shift;
-
-  my $c = $self->config;
-  delete $c->{notify} if(exists($c->{notify}));
-  return $self;
-}
-
-sub _read_old_rc_files {
-  my $self = shift;
-
-  my %c;
-  for my $rcf ( @{ $self->_old_rc_files } ) {
-
-    my $c_tmp = eval { Config::Auto::parse($rcf) } if ( $rcf && -f $rcf );
-    if ( $c_tmp && !$@ ) {
-      print STDERR "Found DEPRECATED config file: " . $rcf . "\n";
-      print STDERR "Please switch to the new format (YAML) and name (~/.bio-grid-run-sge.conf.yml)\n";
-      %c = ( %c, %$c_tmp );
-    }
-
-  }
-  return \%c;
-}
-
-sub _read_rc_file {
-  my $self = shift;
-
-  my $rcf = $self->rc_file;
-  return yslurp($rcf) if ( $rcf && -f $rcf );
-
-  return {};
-}
 
 sub _build_config {
   my $self        = shift;
@@ -83,43 +35,10 @@ sub _build_config {
   my $opt         = $self->opt;
   my $script_args = $self->cluster_script_args;
 
-  #merge config
-  # global options always get overwritten by local config
 
-  my %c = ( %{ $self->_read_old_rc_files }, %{ $self->_read_rc_file } );
 
-  # from the config in the cluster script
-  if ( $a->{config} ) {
-    %c = ( %c, %{ $a->{config} } );
-  }
-
-  # from config file
-  if ( $config_file && -f $config_file ) {
-    %c = ( %c, %{ yslurp($config_file) } );
-  }
-
-  # from additional cluster script args
-  if($script_args && @$script_args > 0) {
-    $c{args} //= [];
-    push @{$c{args}}, @$script_args;
-  }
-
-  $c{no_prompt} = $opt->{no_prompt} unless defined $c{no_prompt};
-  confess "no configuration found, file: $config_file" unless (%c);
-
-  _adjust_deprecated( \%c );
   _unknown_attrs_to_extra( \%c );
   return \%c;
-}
-
-sub _adjust_deprecated {
-  my $c = shift;
-  if ( exists( $c->{method} ) && !exists( $c->{mode} ) ) {
-    warn "The configuration option 'method' is DEPRECATED, use 'mode' instead.";
-    $c->{mode}   = $c->{method};
-    $c->{method} = "DEPRECATED: The configuration option 'method' is DEPRECATED, use 'mode' instead.";
-  }
-  return;
 }
 
 # put unknown configuration options into extra

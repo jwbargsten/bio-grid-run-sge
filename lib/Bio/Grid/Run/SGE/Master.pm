@@ -25,22 +25,10 @@ FindBinNew::again();
 
 # VERSION
 
-has 'cmd' => (
-  is       => 'rw',
-  required => 1,
-  isa      => 'ArrayRef[Str]',
-  default  => sub {
-    ["$Bin/$Script"];
-  }
-);
-has 'no_post_task' => ( is => 'rw' );
+has 'cmd' => ( is => 'rw', default => sub { ["$Bin/$Script"]; } );
+has 'env'    => ( is => 'rw', required => 1 );
+has 'config' => ( is => 'rw', required => 1 );
 
-has 'tmp_dir'    => ( is => 'rw', lazy_build => 1 );
-has 'stderr_dir' => ( is => 'rw', lazy_build => 1 );
-has 'stdout_dir' => ( is => 'rw', lazy_build => 1 );
-has 'result_dir' => ( is => 'rw', lazy_build => 1 );
-has 'log_dir'    => ( is => 'rw', lazy_build => 1 );
-has 'idx_dir'    => ( is => 'rw', lazy_build => 1 );
 has 'test'       => ( is => 'rw' );
 has 'notify'     => ( is => 'rw' );
 has 'no_prompt'  => ( is => 'rw' );
@@ -54,10 +42,7 @@ has 'extra' => ( is => 'rw', default => sub { {} } );
 # one can supply parts or combinations per job
 has 'parts' => ( is => 'rw', default => 0 );
 has 'combinations_per_job' => ( is => 'rw' );
-has 'log' => (is => 'rw', required => 1);
-
-has 'job_name' => ( is => 'rw', default => 'cluster_job' );
-has 'job_id' => ( is => 'rw' );
+has 'job' => ( is => 'rw', required => 1 );
 
 has 'mode' => ( is => 'rw', default => 'None' );
 
@@ -65,9 +50,6 @@ has 'worker_config_file' => ( is => 'rw', lazy_build => 1 );
 has 'worker_env_script'  => ( is => 'rw', lazy_build => 1 );
 has 'submit_bin'         => ( is => 'rw', default    => 'qsub' );
 has 'submit_params'      => ( is => 'rw', default    => sub { [] }, isa => 'ArrayRef[Str]' );
-has 'perl_bin'           => ( is => 'rw', default    => $Config{perlpath} );
-has 'working_dir'        => ( is => 'rw', default    => '.' );
-has 'prefix_output_dirs' => ( is => 'rw', default    => 1 );
 
 # arguments for the cluster script
 has 'args' => ( is => 'rw', isa => 'ArrayRef[Str]', default => sub { [] } );
@@ -76,56 +58,46 @@ has 'iterator' => ( is => 'rw', lazy_build => 1 );
 
 sub num_slots { return shift->parts(@_) }
 
-sub _build_log_dir {
-  my ($self) = @_;
-
-  return File::Spec->catfile( $self->tmp_dir(), 'log' );
-}
-
-sub _build_stderr_dir {
-  my ($self) = @_;
-
-  return File::Spec->catfile( $self->tmp_dir, 'err' );
-}
-
-sub _build_stdout_dir {
-  my ($self) = @_;
-
-  return File::Spec->catfile( $self->tmp_dir, 'out' );
-}
-
-sub _build_idx_dir {
-  my ($self) = @_;
-
-  return File::Spec->catfile( $self->working_dir, 'idx' );
-}
-
-sub _build_tmp_dir {
-  my ($self) = @_;
-
-  my $name = 'tmp';
-
-  $name = join ".", $self->_job_name_stripped, $name
-    if ( $self->prefix_output_dirs );
-
-  return File::Spec->catfile( $self->working_dir, $name );
-}
-
-sub _job_name_stripped {
+sub populate_env {
   my $self = shift;
-  ( my $jn = $self->job_name ) =~ y/-0-9A-Za-z_./_/csd;
-  return $jn;
+
+  my $env    = $self->env;
+  my $config = $self->config;
+  $env->{prefix_output_dirs} //= 1;
+
+  $env->{perl_bin} //= $Config{perlpath};
+
+  # tmp_dir
+  {
+    my $name = 'tmp';
+    $name = join ".", $self->_job_name_stripped, $name
+      if ( $env->{prefix_output_dirs} );
+    $env->{tmp_dir} //= File::Spec->catfile( $config->{working_dir}, $name );
+  }
+
+  $env->{log_dir}    //= File::Spec->catfile( $env->{tmp_dir},        'log' );
+  $env->{stderr_dir} //= File::Spec->catfile( $env->{tmp_dir},        'err' );
+  $env->{stdout_dir} //= File::Spec->catfile( $env->{tmp_dir},        'out' );
+  $env->{idx_dir}    //= File::Spec->catfile( $config->{working_dir}, 'idx' );
+
+  # result_dir
+  {
+    my $name = 'result';
+    ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/csd;
+    $name = join ".", $jn, $name if ( $env->{prefix_output_dirs} );
+    $env->{result_dir} = File::Spec->catfile( $config->{working_dir}, $name );
+  }
+  #WEITER
+sub _build_worker_config_file {
+  my $self = shift;
+  return File::Spec->catfile( $self->tmp_dir, join( '', $self->job_name, '.config.dat' ) );
 }
 
-sub _build_result_dir {
-  my ($self) = @_;
+sub _build_worker_env_script {
+  my $self = shift;
+  return File::Spec->catfile( $self->tmp_dir, join( '.', 'env', $self->job_name, 'pl' ) );
+}
 
-  my $name = 'result';
-
-  $name = join ".", $self->_job_name_stripped, $name
-    if ( $self->prefix_output_dirs );
-
-  return File::Spec->catfile( $self->working_dir, $name );
 }
 
 sub BUILD {
@@ -133,6 +105,7 @@ sub BUILD {
 
   #confess "No input given" unless ( @{ $self->input } > 0 );
 
+  $self->populate_env;
   my $submit_bin = -f $self->submit_bin ? $self->submit_bin : which( $self->submit_bin );
   confess "[SUBMIT_ERROR] $submit_bin not found or not executable" unless ( -x $submit_bin );
 
@@ -152,21 +125,9 @@ sub BUILD {
   confess "working dir does not exist: " . $self->working_dir unless ( -d $self->working_dir );
 
   for my $d (qw/log_dir stderr_dir stdout_dir result_dir tmp_dir idx_dir/) {
-    $self->$d( expand_path( $self->$d ) );
-    unless ( -d $self->$d ) {
-      my_mkdir( $self->$d );
-    }
+    $self->env->{$d} = expand_path( $self->env->$d );
+      my_mkdir( $self->env->{$d} ) unless ( -d $self->env->{$d} );
   }
-
-  my $m = __PACKAGE__->meta;
-
-  my %extra = %{$args};
-  my %attrs = map { $_->name => 1 } $m->get_all_attributes;
-  for my $k ( keys %extra ) {
-    delete $extra{$k} if ( $attrs{$k} );
-  }
-
-  $self->extra( { %extra, %{ $self->extra } } );
 }
 
 sub to_string {
@@ -199,15 +160,6 @@ sub _prepare {
   $self->iterator;
 }
 
-sub _build_worker_config_file {
-  my $self = shift;
-  return File::Spec->catfile( $self->tmp_dir, join( '', $self->job_name, '.config.dat' ) );
-}
-
-sub _build_worker_env_script {
-  my $self = shift;
-  return File::Spec->catfile( $self->tmp_dir, join( '.', 'env', $self->job_name, 'pl' ) );
-}
 
 sub generate_idx_file_name {
   my ( $self, $suffix ) = @_;
@@ -353,7 +305,7 @@ EOS
   }
 
   if ( exists $ENV{PATH} ) {
-    my @dirs = uniq( grep {$_} split( /\Q$Config{path_sep}\E/, $ENV{PATH} ));
+    my @dirs = uniq( grep {$_} split( /\Q$Config{path_sep}\E/, $ENV{PATH} ) );
     my $path = "'" . join( "','", @dirs ) . "'";
     print $fh <<EOS;
 my \@path = grep { \$_ } uniq(split(/:/, \$ENV{PATH}), $path);
@@ -404,7 +356,7 @@ sub queue_post_task {
   chmod 0755, $post_cmd_file;
 
   system( @cmd, @hold_arg, @post_cmd ) == 0 or confess "post task system failed: $?";
-  
+
   return;
 }
 

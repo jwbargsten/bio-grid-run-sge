@@ -21,22 +21,17 @@ has [qw/config_file task/] => ( is => 'rw', required => 1 );
 has [qw/range _part_size/] => ( is => 'rw' );
 has job_id => ( is => 'rw', default => $ENV{JOB_ID} );
 has log_fh => ( is => 'rw' );
+has job => (is => 'rw', required => 1);
 
 has [qw/iterator config/] => ( is => 'rw', lazy_build => 1 );
 #id = task id
-has id => ( is => 'rw', default => 0 );
+#has id => ( is => 'rw', default => 0 );
 
 sub BUILD {
   my ( $self, $args ) = @_;
 
   confess "problems with accessing config file" unless ( $self->config_file && -f $self->config_file );
   confess "task is no code reference" unless ( $self->task && ref $self->task eq 'CODE' );
-
-  #task number, 1 based, set it here
-  $self->id( $ENV{SGE_TASK_ID} )
-    if ( exists( $ENV{SGE_TASK_ID} ) && $ENV{SGE_TASK_ID} ne 'undefined' && $self->id == 0 );
-
-  #$self->job_id( $ENV{JOB_ID} ) unless(defined $self->job_id);
 
   confess "given range is not in the correct format"
     if ( $self->range && @{ $self->range } < 2 );

@@ -285,6 +285,7 @@ sub notify {
   my $c = $self->c;
 
   # reread config and merge it to get the passwords for the notify stuff
+  # FIXME read with new functionality
   $c = { %{ Bio::Grid::Run::SGE::Config->new->config }, %$c };
   return unless ( $c->{notify} );
 
