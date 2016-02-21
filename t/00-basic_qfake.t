@@ -17,10 +17,12 @@ BEGIN { use_ok('Bio::Grid::Run::SGE'); }
 
 my $cl_env = File::Spec->rel2abs("scripts/cl_env.pl");
 
+diag "USAGE";
 my $usage = `$^X $cl_env --help`;
 
 diag $usage;
 
+diag "1st test";
 my @elements = ( 'a', 'b', 'c', 'd', 'e', 'f' );
 my $tmp_dir = File::Spec->rel2abs('tmp_test');
 mkdir $tmp_dir unless ( -d $tmp_dir );

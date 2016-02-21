@@ -14,6 +14,7 @@ use Bio::Grid::Run::SGE::Index;
 use Bio::Grid::Run::SGE::Iterator;
 use Bio::Grid::Run::SGE::Util qw/my_glob expand_path my_mkdir expand_path_rel/;
 use Cwd qw/fastcwd/;
+use File::Spec::Functions qw/catfile rel2abs/;
 use Clone qw/clone/;
 use Data::Printer colored => 1, use_prototypes => 0, rc_file => '';
 use Bio::Gonzales::Util::Cerial;
@@ -25,121 +26,72 @@ FindBinNew::again();
 
 # VERSION
 
-has 'cmd' => ( is => 'rw', default => sub { ["$Bin/$Script"]; } );
 has 'env'    => ( is => 'rw', required => 1 );
 has 'config' => ( is => 'rw', required => 1 );
+has 'log'    => ( is => 'rw', required => 1 );
 
-has 'test'       => ( is => 'rw' );
-has 'notify'     => ( is => 'rw' );
-has 'no_prompt'  => ( is => 'rw' );
-has 'lib'        => ( is => 'rw' );
-has 'script_dir' => ( is => 'ro', default    => $Bin );
-
-has 'input' => ( is => 'rw', isa => 'ArrayRef', default => sub { [] } );
-
-has 'extra' => ( is => 'rw', default => sub { {} } );
-
-# one can supply parts or combinations per job
-has 'parts' => ( is => 'rw', default => 0 );
-has 'combinations_per_job' => ( is => 'rw' );
-has 'job' => ( is => 'rw', required => 1 );
-
-has 'mode' => ( is => 'rw', default => 'None' );
-
-has 'worker_config_file' => ( is => 'rw', lazy_build => 1 );
-has 'worker_env_script'  => ( is => 'rw', lazy_build => 1 );
-has 'submit_bin'         => ( is => 'rw', default    => 'qsub' );
-has 'submit_params'      => ( is => 'rw', default    => sub { [] }, isa => 'ArrayRef[Str]' );
-
-# arguments for the cluster script
-has 'args' => ( is => 'rw', isa => 'ArrayRef[Str]', default => sub { [] } );
+has 'parts' => ( is => 'rw', default  => 0 );
 
 has 'iterator' => ( is => 'rw', lazy_build => 1 );
-
-sub num_slots { return shift->parts(@_) }
 
 sub populate_env {
   my $self = shift;
 
   my $env    = $self->env;
   my $config = $self->config;
-  $env->{prefix_output_dirs} //= 1;
+  ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/csd;
+  $env->{job_name_save} = $jn;
 
-  $env->{perl_bin} //= $Config{perlpath};
+  $env->{script_bin}         //= "$Bin/$Script";    # vorher cmd
+  $env->{script_dir}         //= $Bin;
+  $config->{prefix_output_dirs} //= 1;
+  # FIXME wo config setzten, nur für master nötig?
+  $config->{submit_bin}    //= 'qsub';
+  $config->{input}         //= [];
+  $config->{submit_params} //= [];
+  $config->{mode}          //= "None";
+
+  $env->{perl_bin} //= rel2abs($^X);
 
   # tmp_dir
   {
     my $name = 'tmp';
-    $name = join ".", $self->_job_name_stripped, $name
-      if ( $env->{prefix_output_dirs} );
-    $env->{tmp_dir} //= File::Spec->catfile( $config->{working_dir}, $name );
+    $name = join ".", $jn, $name if ( $config->{prefix_output_dirs} );
+    $config->{tmp_dir} //= catfile( $config->{working_dir}, $name );
   }
 
-  $env->{log_dir}    //= File::Spec->catfile( $env->{tmp_dir},        'log' );
-  $env->{stderr_dir} //= File::Spec->catfile( $env->{tmp_dir},        'err' );
-  $env->{stdout_dir} //= File::Spec->catfile( $env->{tmp_dir},        'out' );
-  $env->{idx_dir}    //= File::Spec->catfile( $config->{working_dir}, 'idx' );
+  $config->{log_dir}    //= catfile( $config->{tmp_dir},     'log' );
+  $config->{stderr_dir} //= catfile( $config->{tmp_dir},     'err' );
+  $config->{stdout_dir} //= catfile( $config->{tmp_dir},     'out' );
+  $config->{idx_dir}    //= catfile( $config->{working_dir}, 'idx' );
 
   # result_dir
   {
     my $name = 'result';
-    ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/csd;
-    $name = join ".", $jn, $name if ( $env->{prefix_output_dirs} );
-    $env->{result_dir} = File::Spec->catfile( $config->{working_dir}, $name );
+    $name = join ".", $jn, $name if ( $config->{prefix_output_dirs} );
+    $config->{result_dir} = catfile( $config->{working_dir}, $name );
   }
-  #WEITER
-sub _build_worker_config_file {
-  my $self = shift;
-  return File::Spec->catfile( $self->tmp_dir, join( '', $self->job_name, '.config.dat' ) );
-}
 
-sub _build_worker_env_script {
-  my $self = shift;
-  return File::Spec->catfile( $self->tmp_dir, join( '.', 'env', $self->job_name, 'pl' ) );
-}
-
+  $env->{worker_config_file} = catfile( $config->{tmp_dir}, $jn . '.job.conf.json' );
+  $env->{worker_env_script} = catfile( $config->{tmp_dir}, join( '.', 'env', $jn, 'pl' ) );
 }
 
 sub BUILD {
   my ( $self, $args ) = @_;
 
-  #confess "No input given" unless ( @{ $self->input } > 0 );
-
   $self->populate_env;
-  my $submit_bin = -f $self->submit_bin ? $self->submit_bin : which( $self->submit_bin );
-  confess "[SUBMIT_ERROR] $submit_bin not found or not executable" unless ( -x $submit_bin );
 
-  for my $i ( @{ $self->input } ) {
-    #merge different namings to one std. naming: elements
-    for my $key (qw/list files/) {
-      $i->{elements} = delete $i->{$key} if ( exists( $i->{$key} ) && @{ $i->{$key} } > 0 );
-
-    }
-
-    confess "No input given" unless ( exists( $i->{elements} ) && @{ $i->{elements} } );
-  }
-
-  $self->perl_bin( expand_path_rel( $self->perl_bin ) );
-
-  $self->working_dir( File::Spec->rel2abs( $self->working_dir ) );
-  confess "working dir does not exist: " . $self->working_dir unless ( -d $self->working_dir );
-
-  for my $d (qw/log_dir stderr_dir stdout_dir result_dir tmp_dir idx_dir/) {
-    $self->env->{$d} = expand_path( $self->env->$d );
-      my_mkdir( $self->env->{$d} ) unless ( -d $self->env->{$d} );
-  }
+  $self->prepare;
 }
 
 sub to_string {
   my ($self) = @_;
 
-  $self->_prepare;
-  my %c = %{$self};
-  delete $c{iterator};
-  delete $c{log};
-  $c{input} = clone( $self->input );
+  my %conf = %{$self->config};
+  my %env = %{$self->env};
+  $conf{input} = clone( $conf{input} );
 
-  for my $in ( @{ $c{input} } ) {
+  for my $in ( @{ $conf{input} } ) {
     if ( @{ $in->{elements} } > 10 ) {
       my @elements;
       push @elements, @{ $in->{elements} }[ 0 .. 4 ];
@@ -148,22 +100,51 @@ sub to_string {
       $in->{elements} = \@elements;
     }
   }
-  $c{parts} = $self->_calculate_number_of_parts;
-  my $string = p( \%c );
+  my $string = p(\%conf );
 
-  return "CONFIGURATION:\n" . $string;
+  return $string;
 }
 
-sub _prepare {
+sub prepare {
   my ($self) = @_;
-  $self->worker_config_file;
-  $self->iterator;
-}
 
+  my $conf = $self->config;
+  my $env = $self->env;
+
+  confess "No input given" unless ( @{ $conf->{input} } > 0 );
+
+  # FIXME vllt in job.pm init?
+  my $submit_bin = -f $conf->{submit_bin} ? $conf->{submit_bin} : which( $conf->{submit_bin} );
+  confess "[SUBMIT_ERROR] $submit_bin not found or not executable" unless ( -x $submit_bin );
+  $conf->{submit_bin} = rel2abs($submit_bin);
+
+  for my $i ( @{ $conf->{input} } ) {
+    #merge different namings to one std. naming: elements
+    for my $key (qw/list files/) {
+      $i->{elements} = delete $i->{$key} if ( exists( $i->{$key} ) && @{ $i->{$key} } > 0 );
+    }
+    confess "No input given" unless ( exists( $i->{elements} ) && @{ $i->{elements} } );
+  }
+
+  $conf->{working_dir} = rel2abs($conf->{working_dir});
+  confess "working dir does not exist: " . $conf->{working_dir}  unless ( -d $conf->{working_dir} );
+
+  for my $d (qw/log_dir stderr_dir stdout_dir result_dir tmp_dir idx_dir/) {
+    $conf->{$d} = expand_path( $conf->{$d} );
+    my_mkdir( $conf->{$d} ) unless ( -d $conf->{$d} );
+  }
+
+  # make sure the iterator gets built
+  my $iter = $self->iterator;
+
+  # one can supply parts or combinations per job
+  $self->config->{parts} ||= $self->calc_num_parts;
+  $self->env->{num_comb} = $iter->num_comb;
+}
 
 sub generate_idx_file_name {
   my ( $self, $suffix ) = @_;
-  return File::Spec->catfile( $self->idx_dir, join( '.', ( $self->job_name, $suffix, 'idx' ) ) );
+  return catfile( $self->config->{idx_dir}, join( '.', ( $self->env->{job_name_save}, $suffix, 'idx' ) ) );
 }
 
 sub _build_iterator {
@@ -172,34 +153,33 @@ sub _build_iterator {
   my @indices;
 
   my $i = 0;
-  for my $in ( @{ $self->input } ) {
+  for my $in ( @{ $self->config->{'input'} } ) {
     $in->{idx_file} = $self->generate_idx_file_name( $i++ );
     push @indices, Bio::Grid::Run::SGE::Index->new( %{$in}, writeable => 1, log => $self->log );
     $indices[-1]->create( $in->{elements} );
   }
 
   # create iterator
-  my $iter = Bio::Grid::Run::SGE::Iterator->new( mode => $self->mode, indices => \@indices, );
-  return $iter;
+  return Bio::Grid::Run::SGE::Iterator->new( mode => $self->config->{mode}, indices => \@indices, );
 }
 
 sub run {
   my ($self) = @_;
 
-  $self->_prepare;
+  $self->prepare;
 
-  my $tmp_dir     = $self->tmp_dir;
-  my $config_file = $self->worker_config_file;
+  my $conf               = $self->config;
+  my $env                = $self->env;
+  my $tmp_dir            = $conf->{tmp_dir};
+  my $worker_config_file = $env->{worker_config_file};
 
-  my ( $cmd_args, $c ) = $self->cache_config($config_file);
-  my $cmd = join ' ', @$cmd_args;
+  my $submit_cmd = $self->build_exec_env;
 
-  say STDERR "Running: " . $cmd;
+  $self->log->info( "Running: " . join( " ", @$submit_cmd ) );
 
   # capture from external command
-
   my ( $stdout, $stderr, $exit ) = capture {
-    system(@$cmd_args);
+    system(@$submit_cmd);
   };
 
   if ( $exit != 0 ) {
@@ -208,87 +188,79 @@ sub run {
 
   $stdout =~ /^Your\s*job(-array)?\s*(\d+)/;
 
-  unless ( defined $self->job_id ) {
+  unless ( defined $env->{job_id} ) {
     if ( defined $2 ) {
-      $self->job_id($2);
+      $env->{job_id} = $2;
     } else {
       warn "[SUBMIT_WARNING] could not parse job id, using -1 as job id.\nSTDOUT:\n$stdout\nSTDERR:\n$stderr";
-      $self->job_id(-1);
+      $env->{job_id} = -1;
     }
   }
 
   open my $main_fh, '>',
-    File::Spec->catfile( $self->log_dir, sprintf( "main.%s.j%s.cmd", $self->job_name, $self->job_id ) )
+    catfile( $conf->{log_dir}, sprintf( "main.%s.j%s.cmd", $env->{job_name_save}, $env->{job_id} ) )
     or confess "Can't open filehandle: $!";
-  print $main_fh "cd '" . fastcwd . "' && " . $cmd, "\n";
+  say $main_fh "cd '" . fastcwd . "' && " . join( " ", @$submit_cmd );
   $main_fh->close;
-  $self->queue_post_task($config_file) if ( $self->job_id >= 0 );
-
-  return { config => $c, command => $cmd_args };
+  $self->queue_post_task() if ( $env->{job_id} >= 0 );
 }
 
-sub _calculate_number_of_parts {
+sub calc_num_parts {
   my ($self) = @_;
 
+  my $c    = $self->config;
   my $iter = $self->iterator;
-  if ( !$self->parts || $self->parts > $iter->num_comb ) {
-    if ( $self->combinations_per_job && $self->combinations_per_job > 1 ) {
-      my $parts = int( $iter->num_comb / $self->combinations_per_job );
+  if ( !$c->{parts} || $c->{parts} > $iter->num_comb ) {
+    if ( $c->{combinations_per_job} && $c->{combinations_per_job} > 1 ) {
+      my $parts = int( $iter->num_comb / $c->{combinations_per_job} );
 
       #we have a rest, so one part more
       $parts++
-        if ( $parts * $self->combinations_per_job < $iter->num_comb );
+        if ( $parts * $c->{combinations_per_job} < $iter->num_comb );
 
       return $parts;
     } else {
       return $iter->num_comb;
     }
   }
-  return $self->parts;
+  # TODO parts -> num_parts
+  return $c->{parts};
 }
 
-sub cache_config {
-  my ( $self, $config_file ) = @_;
+sub build_exec_env {
+  my ($self) = @_;
 
-  $self->_prepare;
+  my $conf = $self->config;
+  my $env  = $self->env;
 
-  my $iter = $self->iterator;
+  my ( $from, $to ) = ( 1, $conf->{parts} );
+  $to = $conf->{test} if ( $conf->{test} && $conf->{test} > 0 );
 
-  $self->parts( $self->_calculate_number_of_parts );
-  # make sure the variable is build before %{$self}
-  $self->worker_env_script;
-
-  my %c = ( %{$self}, num_comb => $iter->num_comb, extra => $self->extra );
-  delete $c{iterator};
-  delete $c{log};
-
-  my ( $from, $to ) = ( 1, $self->parts );
-  $to = $self->test if ( $self->test && $self->test > 0 && $to > 7 );
-
-  my @cmd = ( $self->submit_bin );
+  my @cmd = ( $conf->{submit_bin} );
   push @cmd, '-t', "$from-$to";
-  push @cmd, '-S', $self->perl_bin;
-  push @cmd, '-N', $self->job_name;
-  push @cmd, '-e', $self->stderr_dir;
-  push @cmd, '-o', $self->stdout_dir;
-  push @cmd, @{ $self->submit_params };
+  push @cmd, '-S', $env->{perl_bin};
+  push @cmd, '-N', $conf->{job_name};
+  push @cmd, '-e', $conf->{stderr_dir};
+  push @cmd, '-o', $conf->{stdout_dir};
+  push @cmd, @{ $conf->{submit_params} };
 
-  my $worker_env_script_cmd = $self->write_worker_env_script($config_file);
-  push @cmd, $worker_env_script_cmd, @{ $self->cmd }, '--worker', $config_file;
+  $self->write_worker_env_script;
+  push @cmd, $env->{worker_env_script}, $env->{script_bin} , '--stage', 'worker',
+    $env->{worker_config_file};
 
-  my $cmd = join ' ', @cmd;
-  $c{job_cmd} = $cmd;
-  $c{range} = [ $from, $to ];
+  $env->{job_cmd} = \@cmd;
+  $env->{range} = [ $from, $to ];
 
-  nstore \%c, $config_file;
-
-  return ( \@cmd, \%c );
+  jspew( $env->{worker_config_file},{ config => $conf, env => $env }) ;
+  return $env->{job_cmd};
 }
 
 sub write_worker_env_script {
-  my ( $self, $config_file ) = @_;
+  my ($self) = @_;
 
-  open my $fh, '>', $self->worker_env_script or confess "Can't open filehandle: $!";
+  my $conf = $self->config;
+  my $env  = $self->env;
+  open my $fh, '>', $env->{worker_env_script} or confess "Can't open filehandle: $!";
   print $fh <<EOS;
 #!/usr/bin/env perl
 use warnings;
@@ -323,54 +295,37 @@ unless ( my $return = do $cmd ) {
 exit;
 EOF
   $fh->close;
-
-  return $self->worker_env_script;
 }
 
 sub queue_post_task {
-  my ( $self, $config_file ) = @_;
+  my ( $self ) = @_;
 
-  my @cmd = ( $self->submit_bin );
-  push @cmd, '-S', $self->perl_bin;
-  push @cmd, '-N', join( '_', 'p' . $self->job_id, $self->job_name );
-  push @cmd, '-e', $self->stderr_dir;
-  push @cmd, '-o', $self->stdout_dir;
+  my $conf = $self->config;
+  my $env = $self->env;
 
-  my @hold_arg = ( '-hold_jid', $self->job_id );
+  my @cmd = ( $conf->{submit_bin} );
+  push @cmd, '-S', $env->{perl_bin};
+  push @cmd, '-N', join( '_', 'p' . $env->{job_id}, $env->{job_name_save} );
+  push @cmd, '-e', $conf->{stderr_dir};
+  push @cmd, '-o', $conf->{stdout_dir};
+
+  my @hold_arg = ( '-hold_jid', $env->{job_id} );
 
   #push @cmd, @{ $self->submit_params };
 
-  my @post_cmd = ( $self->worker_env_script, @{ $self->cmd }, '--post_task', $self->job_id, $config_file );
+  my @post_cmd = ( $env->{worker_env_script}, $env->{script_bin} , '--post_task', $env->{job_id}, $env->{worker_config_file} );
 
-  $self->save_config;
-  say STDERR "post processing: " . join( " ", @cmd, @hold_arg, @post_cmd );
+  $self->log->info("post processing: " . join( " ", @cmd, @hold_arg, @post_cmd ));
 
-  my $job_id = $self->job_id;
-  my $post_cmd_file
-    = File::Spec->catfile( $self->tmp_dir, sprintf( "post.%s.j%s.cmd", $self->job_name, $self->job_id ) );
+  my $post_cmd_file = catfile( $conf->{tmp_dir}, sprintf( "post.%s.j%s.cmd", $env->{job_name_save}, $env->{job_id} ) );
 
   open my $post_fh, '>', $post_cmd_file or confess "Can't open filehandle: $!";
-  print $post_fh join( " ", "cd", "'" . fastcwd . "'", '&&', @cmd, @post_cmd ), "\n";
+  say $post_fh join( " ", "cd", "'" . fastcwd . "'", '&&', @cmd, @post_cmd );
   $post_fh->close;
 
   chmod 0755, $post_cmd_file;
 
   system( @cmd, @hold_arg, @post_cmd ) == 0 or confess "post task system failed: $?";
-
-  return;
-}
-
-sub save_config {
-  my ($self) = @_;
-
-  my $cfg_save
-    = File::Spec->catfile( $self->result_dir, sprintf( "%s.j%s.config", $self->job_name, $self->job_id ) );
-
-  say STDERR "Saving config to " . $cfg_save;
-  open my $cfg_fh, '>', $cfg_save
-    or confess "Can't open filehandle: $!";
-  print $cfg_fh Dumper($self);
-  $cfg_fh->close;
 
   return;
 }

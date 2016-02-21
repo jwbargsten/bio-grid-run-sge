@@ -97,6 +97,7 @@ sub expand_path_rel {
   my @files = @_;
   my @expanded;
   for my $file (@files) {
+    confess "trying to expand empty path" unless($file);
     $file =~ s{ ^ ~ ( [^/]* ) }
             { $1
                 ? (getpwnam($1))[7]

@@ -8,16 +8,20 @@ use Carp;
 use Bio::Gonzales::Util::Log;
 use Bio::Gonzales::Util qw/sys_fmt/;
 use Getopt::Long::Descriptive;
+use Bio::Gonzales::Util::Cerial;
+use Cwd qw/fastcwd/;
+use Scalar::Util qw/blessed/;
+use IO::Prompt::Tiny qw/prompt/;
 
 use 5.010;
 
 our $VERSION = 0.01_01;
 
 has 'log' => ( is => 'rw', lazy_build => 1 );
-has [ 'usage', 'pre_task', 'post_task', 'task', ] => ( is => 'rw' );
+has [ 'pre_task', 'post_task', 'task', ] => ( is => 'rw' );
 
-has _config    => ( is => 'rw', default => sub { {} } );
-has _env       => ( is => 'rw', default => sub { {} } );
+has _config => ( is => 'rw', default => sub { {} } );
+has _env    => ( is => 'rw', default => sub { {} } );
 
 sub BUILD {
   my $self = shift;
@@ -115,16 +119,15 @@ sub run {
     [ 'no_prompt', "ask no confirmation stuff for running a job" ],
   );
 
-  #FIXME
   usage( $usage, $run_args->{usage} ) if ( $opt->help );
+
   $self->env->{job_id}  //= $opt->job_id;
   $self->env->{task_id} //= $opt->task_id;
   if ( $opt->range ) {
     my @range = split /[-,]/, $opt->range;
 
     #one number x: from x to x
-    @range = ( @range, @range )
-      if ( @range == 1 );
+    @range = ( @range, @range ) if ( @range == 1 );
     $self->env->{range} = \@range;
   }
 
@@ -159,8 +162,11 @@ sub run {
 
   if ( $opt->stage eq 'worker' ) {
     # WORKER
-    Bio::Grid::Run::SGE::Worker->new( task => $run_args->{task}, config => $self->config, env => $self->env )
-      ->run;
+    Bio::Grid::Run::SGE::Worker->new(
+      task   => $run_args->{task},
+      config => $self->config,
+      env    => $self->env
+    )->run;
 
   } elsif ( $opt->stage eq 'node_log' ) {
     #NODE LOG
@@ -234,15 +240,15 @@ sub _run_master {
   my $c = $self->config;
 
   my $master
-    = Bio::Grid::Run::SGE::Master->new( config => $self->config, log => job->log, env => $self->env );
+    = Bio::Grid::Run::SGE::Master->new( config => $self->config, log => $self->log, env => $self->env );
 
   #initiate master
   if ( $run_args->{pre_task} && ref $run_args->{pre_task} eq 'CODE' ) {
-    job->log->info("RUNNING CUSTOM PRE TASK");
+    $self->log->info("RUNNING CUSTOM PRE TASK");
     $run_args->{pre_task}->($master);
   }
 
-  job->log->info( $master->to_string );
+  $self->log->info( "CONFIGURATION:", $master->to_string );
   if ( $c->{no_prompt} || prompt( "run job? [yn]", 'y' ) eq 'y' ) {
     $master->run;
   }
@@ -252,8 +258,11 @@ sub _run_post_task {
   my ( $self, $post_task ) = @_;
 
   # create all summary files and restart scripts
-  my $log = Bio::Grid::Run::SGE::Log::Analysis->new( config => $self->config, env => $self->env,
-    log => $self->log );
+  my $log = Bio::Grid::Run::SGE::Log::Analysis->new(
+    config => $self->config,
+    env    => $self->env,
+    log    => $self->log
+  );
   $log->analyse;
   $log->write;
   $log->notify;
@@ -279,7 +288,7 @@ sub usage {
 sub _Get_config_file {
   my $config_file = shift;
 
-  return unless ( $config_file || $config_file eq '_' || -e $config_file );
+  return unless ( $config_file && $config_file ne '_' && -e $config_file );
   #this is either the original yaml config or a serialized config object
   $config_file = File::Spec->rel2abs($config_file);
   my $base_dir = ( File::Spec->splitpath($config_file) )[1];

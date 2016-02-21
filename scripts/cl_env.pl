@@ -11,10 +11,11 @@ use Bio::Gonzales::Util::Cerial;
 
 use File::Spec;
 
-run_job(
+job->run(
   {
     task => sub {
-      my ( $c, $result_prefix, $idx_item ) = @_;
+      die;
+      my ( $result_prefix, $idx_item ) = @_;
 
       job->log->info("Running $idx_item->[0] -> $result_prefix");
       jspew( $result_prefix . ".env.json",  \%ENV );

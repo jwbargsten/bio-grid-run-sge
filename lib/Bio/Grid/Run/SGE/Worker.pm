@@ -17,37 +17,36 @@ use Cwd qw/fastcwd/;
 
 # VERSION
 
-has [qw/config_file task/] => ( is => 'rw', required => 1 );
+has [qw/config env/] => ( is => 'rw', required => 1 );
+has [qw/task/] => ( is => 'rw', required => 1 );
 has [qw/range _part_size/] => ( is => 'rw' );
-has job_id => ( is => 'rw', default => $ENV{JOB_ID} );
-has log_fh => ( is => 'rw' );
-has job => (is => 'rw', required => 1);
+has log => (is => 'rw', required => 1);
 
-has [qw/iterator config/] => ( is => 'rw', lazy_build => 1 );
-#id = task id
-#has id => ( is => 'rw', default => 0 );
+has log_fh => ( is => 'rw' );
+
+has [qw/iterator/] => ( is => 'rw', lazy_build => 1 );
 
 sub BUILD {
   my ( $self, $args ) = @_;
 
-  confess "problems with accessing config file" unless ( $self->config_file && -f $self->config_file );
+
+  my $conf = $self->config;
+  my $env = $self->env;
+
   confess "task is no code reference" unless ( $self->task && ref $self->task eq 'CODE' );
 
   confess "given range is not in the correct format"
-    if ( $self->range && @{ $self->range } < 2 );
+    if ( $env->{range} && @{ $env->{range} } < 2 );
 
   $self->_determine_range;
 
-  my $log_file = catfile( $self->config->{log_dir},
-    sprintf( "%s.l%d.%d", $self->config->{job_name}, $self->job_id, $self->id ) );
-  $self->log($log_file);
+  my $log_file = catfile( $conf->{log_dir}, sprintf( "%s.l%d.%d", $env->{job_name_save}, $env->{job_id}, $env->{task_id} ) );
+  $self->log->info($log_file);
   open my $log_fh, '>', $log_file or confess "Can't open filehandle: $!";
   $self->log_fh($log_fh);
 
   $self->_log_current_settings;
 }
-
-sub _build_config { retrieve( $_[0]->config_file ) }
 
 sub _build_iterator {
   my ($self) = @_;
@@ -67,13 +66,14 @@ sub _build_iterator {
 
 sub _determine_range {
   my ($self) = @_;
-  my $c      = $self->config;
-  my $id     = $self->id;
+  my $conf      = $self->config;
+  my $env = $self->env;
+  my $id = $env->{task_id};
 
-  my ( $num_comb, $parts ) = ( $c->{num_comb}, $c->{parts} );
+  my ( $num_comb, $parts ) = ( $env->{num_comb}, $conf->{parts} );
 
-  $self->_part_size(1);
-  if ( $self->range ) {
+  $env->{part_size} = 1;
+  if ( $env->{range} ) {
     #we ran before (and failed) and now somebody restarts us with a given range
 
     return;
@@ -83,7 +83,7 @@ sub _determine_range {
   $id--;
 
   unless ($parts) {
-    $self->range( [ $id, $id ] );
+    $env->{range} =  [ $id, $id ];
     return;
   }
   my $part_size = int( $num_comb / $parts );
@@ -93,10 +93,10 @@ sub _determine_range {
   my $from = $part_size * $id;
   my $to   = $from + $part_size - 1;
 
-  $self->range( [ $from, $to ] );
+  $env->{range} = [ $from, $to ];
   if ( $id < $rest ) {
     #do sth extra
-    push @{ $self->range }, ( $part_size * $parts ) + $id;
+    push @{ $env->{range}}, ( $part_size * $parts ) + $id;
   }
 
   return;
@@ -233,8 +233,7 @@ sub _log_current_settings {
   my ($self) = @_;
 
   $self->log_status( "init: " . localtime(time) );
-  $self->log_status( "config: " . $self->config_file );
-  $self->log_status( "id: " . $self->id );
+  $self->log_status( "task_id: " . $self->id );
   $self->log_status( "job_id: " . $self->job_id );
   $self->log_status( "job_cmd: " . $self->config->{job_cmd} );
   $self->log_status( "hostname: " . hostfqdn() );

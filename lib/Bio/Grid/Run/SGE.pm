@@ -8,18 +8,14 @@ use Carp;
 
 use Bio::Grid::Run::SGE::Master;
 use Bio::Grid::Run::SGE::Worker;
-use Bio::Grid::Run::SGE::Config;
 use Bio::Grid::Run::SGE::Util qw/my_glob delete_by_regex/;
 use Bio::Grid::Run::SGE::Log::Analysis;
 use Bio::Grid::Run::SGE::Job;
 use Data::Dumper;
 
-use IO::Prompt::Tiny qw/prompt/;
 use File::Spec;
 use Storable;
 use Bio::Gonzales::Util::Cerial qw/yslurp/;
-use Cwd qw/fastcwd/;
-use Scalar::Util qw/blessed/;
 use Bio::Gonzales::Util::Log;
 
 use base 'Exporter';

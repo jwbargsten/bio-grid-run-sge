@@ -11,7 +11,6 @@ use Bio::Grid::Run::SGE::Util qw/my_glob/;
 use Bio::Grid::Run::SGE::Log::Worker;
 use Bio::Grid::Run::SGE::Log::Notify::Jabber;
 use Bio::Grid::Run::SGE::Log::Notify::Mail;
-use Bio::Grid::Run::SGE::Config;
 use Bio::Gonzales::Util::Cerial;
 use Path::Tiny;
 
@@ -125,13 +124,13 @@ sub analyse {
     ( my $range = $log_data->{range} ) =~ s/[()]//g;
 
     # we cannot read the log file, skip report. these jobs will be taken care of further down
-    unless ( $log_data->{job_cmd} && exists( $log_data->{id} ) ) {
+    unless ( $log_data->{job_cmd} && exists( $log_data->{task_id} ) ) {
       $self->_report_log("ERROR: could not parse log_file $log_file");
       next;
     }
 
     # collect jobs that have a basic log
-    $jobs_with_log{ $log_data->{id} } = 1;
+    $jobs_with_log{ $log_data->{task_id} } = 1;
 
     ( my $job_cmd = $log_data->{job_cmd} ) =~ s/-t\s+\d+-\d+\s+//;
     $STD_JOB_CMD   = $job_cmd         unless defined $STD_JOB_CMD;
@@ -188,7 +187,7 @@ sub analyse {
             {
               job_cmd => $STD_JOB_CMD,
               job_id  => $job_id,
-              id      => $i,
+              task_id      => $i,
               cwd     => $STD_WORKER_WD,
             }
           );
@@ -256,8 +255,8 @@ sub _report_missing_job {
   $self->_report_cmd("#NODE: $s->{id}; NO_LOG");
   #replace job array numbers with worker id, to emulate the environment of the original array job
 
-  $self->_report_cmd("cd '$s->{cwd}' && $s->{job_cmd} --job_id $s->{job_id} --id $s->{id}");
-  $self->_report_node_log( "Node " . $s->{id} . " crashed, NO_LOG NO_ERR NO_OUT" );
+  $self->_report_cmd("cd '$s->{cwd}' && $s->{job_cmd} --job_id $s->{job_id} --task_id $s->{task_id}");
+  $self->_report_node_log( "Node " . $s->{task_id} . " crashed, NO_LOG NO_ERR NO_OUT" );
 
   return;
 }
@@ -268,11 +267,11 @@ sub _report_error_job {
   $self->_report_cmd("#NODE: $log_data->{id}; LOG: $s->{log_file}");
 
   for my $t ( @{ $log_data->{'comp.task.exit.error'} } ) {
-    my ( $task_id, $files ) = split /\s/, $t, 2;
+    my ( $range, $files ) = split /\s/, $t, 2;
 
     $self->_report_cmd(
-      "cd '$log_data->{cwd}' && $s->{job_cmd} --range $task_id --job_id $s->{job_id} --id $log_data->{id}");
-    $self->_report_node_log( "Node " . $log_data->{id} . " had error(s)" );
+      "cd '$log_data->{cwd}' && $s->{job_cmd} --range $range --job_id $s->{job_id} --task_id $log_data->{task_id}");
+    $self->_report_node_log( "Node " . $log_data->{task_id} . " had error(s)" );
     $self->_report_node_log("    log: $s->{log_file}");
     $self->_report_node_log("    err: $s->{err_file}");
     $self->_report_node_log("    out: $s->{out_file}");
