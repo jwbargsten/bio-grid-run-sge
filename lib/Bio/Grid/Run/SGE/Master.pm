@@ -166,8 +166,6 @@ sub _build_iterator {
 sub run {
   my ($self) = @_;
 
-  $self->prepare;
-
   my $conf               = $self->config;
   my $env                = $self->env;
   my $tmp_dir            = $conf->{tmp_dir};
@@ -249,7 +247,7 @@ sub build_exec_env {
     $env->{worker_config_file};
 
   $env->{job_cmd} = \@cmd;
-  $env->{range} = [ $from, $to ];
+  $env->{job_range} = [ $from, $to ];
 
   jspew( $env->{worker_config_file},{ config => $conf, env => $env }) ;
   return $env->{job_cmd};

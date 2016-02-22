@@ -14,7 +14,6 @@ use File::Spec;
 job->run(
   {
     task => sub {
-      die;
       my ( $result_prefix, $idx_item ) = @_;
 
       job->log->info("Running $idx_item->[0] -> $result_prefix");
@@ -25,10 +24,9 @@ job->run(
       return 1;
     },
     post_task => sub {
-      my $c = shift;
-      open my $fh, '>', File::Spec->catfile( $c->{result_dir}, 'finished' )
+      open my $fh, '>', File::Spec->catfile( job->config('result_dir'), 'finished' )
         or die "Can't open filehandle: $!";
-      say $fh $c->{job_id};
+      say $fh job->env("job_id");
       $fh->close;
     },
     usage => \&usage,

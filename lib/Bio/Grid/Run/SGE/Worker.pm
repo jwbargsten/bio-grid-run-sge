@@ -19,10 +19,9 @@ use Cwd qw/fastcwd/;
 
 has [qw/config env/] => ( is => 'rw', required => 1 );
 has [qw/task/]       => ( is => 'rw', required => 1 );
-has [qw/range/]      => ( is => 'rw' );
 has log => ( is => 'rw', required => 1 );
 
-has log_fh => ( is => 'rw' );
+has status_log_fh => ( is => 'rw' );
 
 has [qw/iterator/] => ( is => 'rw', lazy_build => 1 );
 
@@ -43,9 +42,9 @@ sub BUILD {
 
   my $log_file = catfile( $conf->{log_dir},
     sprintf( "%s.l%d.%d", $env->{job_name_save}, $env->{job_id}, $env->{task_id} ) );
-  $self->log->info($log_file);
-  open my $log_fh, '>', $log_file or confess "Can't open filehandle: $!";
-  $self->log_fh($log_fh);
+  $self->log->info( "log: " . $log_file );
+  open my $status_log_fh, '>', $log_file or confess "Can't open filehandle: $!";
+  $self->status_log_fh($status_log_fh);
 
   $self->_log_current_settings;
 }
@@ -67,10 +66,10 @@ sub _build_iterator {
 }
 
 sub _determine_range {
-  my ($self) = @_;
-  my $conf   = $self->config;
-  my $env    = $self->env;
-  my $id     = $env->{task_id};
+  my ($self)  = @_;
+  my $conf    = $self->config;
+  my $env     = $self->env;
+  my $task_id = $env->{task_id};
 
   my ( $num_comb, $parts ) = ( $env->{num_comb}, $conf->{parts} );
 
@@ -82,23 +81,23 @@ sub _determine_range {
   }
 
   #make everyting 0 based
-  $id--;
+  $task_id--;
 
   unless ($parts) {
-    $env->{range} = [ $id, $id ];
+    $env->{range} = [ $task_id, $task_id ];
     return;
   }
   my $part_size = int( $num_comb / $parts );
 
   my $rest = $num_comb % $parts;
 
-  my $from = $part_size * $id;
+  my $from = $part_size * $task_id;
   my $to   = $from + $part_size - 1;
 
   $env->{range} = [ $from, $to ];
-  if ( $id < $rest ) {
+  if ( $task_id < $rest ) {
     #do sth extra
-    push @{ $env->{range} }, ( $part_size * $parts ) + $id;
+    push @{ $env->{range} }, ( $part_size * $parts ) + $task_id;
   }
 
   return;
@@ -181,10 +180,12 @@ sub run {
 
 sub _create_comb_iterator {
   my ($self) = @_;
-  my $c      = $self->config;
-  my $iter   = $self->iterator;
+  my $conf   = $self->config;
+  my $env    = $self->env;
 
-  $iter->range( $self->range );
+  my $iter = $self->iterator;
+
+  $iter->range( $env->{range} );
   my $num_infiles = @{ $iter->indices };
 
   return sub {
@@ -203,8 +204,8 @@ sub _create_comb_iterator {
     die "different number of combinations than indices...????!!!" if ( $num_infiles != @$comb );
     for ( my $i = 0; $i < @$comb; $i++ ) {
       my $idx_type        = $iter->indices->[$i]->type;
-      my $infile_template = catfile( $c->{tmp_dir},
-        sprintf( "worker.j%d.%d.t%d.i%d.tmp", $self->job_id, $self->id, $comb_idx, $i ) );
+      my $infile_template = catfile( $conf->{tmp_dir},
+        sprintf( "worker.j%d.%d.t%d.i%d.tmp", $env->{job_id}, $env->{task_id}, $comb_idx, $i ) );
 
       if ( $idx_type && $idx_type eq 'direct' ) {
         push @infiles,      $comb->[$i];
@@ -218,8 +219,8 @@ sub _create_comb_iterator {
       }
     }
 
-    my $result_prefix = catfile( $c->{result_dir},
-      sprintf( "%s.j%d.%d.t%d", $c->{job_name}, $self->job_id, $self->id, $comb_idx ) );
+    my $result_prefix = catfile( $conf->{result_dir},
+      sprintf( "%s.j%d.%d.t%d", $env->{job_name_save}, $env->{job_id}, $env->{task_id}, $comb_idx ) );
 
     return {
       infiles       => \@infiles,
@@ -233,10 +234,13 @@ sub _create_comb_iterator {
 sub _log_current_settings {
   my ($self) = @_;
 
+  my $conf = $self->config;
+  my $env  = $self->env;
+
   $self->log_status( "init: " . localtime(time) );
-  $self->log_status( "task_id: " . $self->id );
-  $self->log_status( "job_id: " . $self->job_id );
-  $self->log_status( "job_cmd: " . $self->config->{job_cmd} );
+  $self->log_status( "task_id: " . $env->{task_id} );
+  $self->log_status( "job_id: " . $env->{job_id} );
+  $self->log_status( "job_cmd: " . $env->{job_cmd} );
   $self->log_status( "hostname: " . hostfqdn() );
 
   $self->log_status("err: $ENV{SGE_STDERR_PATH}");
@@ -244,16 +248,15 @@ sub _log_current_settings {
 
   #@range = ( from, to, extra_element)
   #extra element caused by modulo leftover
-  $self->log_status("sge_task_id:  $ENV{SGE_TASK_ID}");
-  $self->log_status( "range: (" . join( ",", @{ $self->range } ) . ")" );
+  $self->log_status( "range: (" . join( ",", @{ $env->{range} } ) . ")" );
 }
 
 sub log_status {
   my ($self) = shift;
-  my $log_fh = $self->log_fh;
+  my $status_log_fh = $self->status_log_fh;
 
-  print $log_fh join( " ", @_ ), "\n";
-  $log_fh->flush;
+  say $status_log_fh join( " ", @_ );
+  $status_log_fh->flush;
 
   return;
 }

@@ -12,6 +12,8 @@ use Bio::Gonzales::Util::Cerial;
 use Cwd qw/fastcwd/;
 use Scalar::Util qw/blessed/;
 use IO::Prompt::Tiny qw/prompt/;
+use Data::Dumper;
+
 
 use 5.010;
 
@@ -133,11 +135,12 @@ sub run {
 
   my ( $config_file, $base_dir ) = _Get_config_file( shift @ARGV );
   if ($config_file) {
-    $self->env( "config_file" => $config_file );
     chdir($base_dir);
   }
   if ( $opt->stage eq 'master' ) {
     #MASTER
+
+    $self->env( "config_file" => $config_file );
 
     $self->populate_config();
     $self->config->{no_prompt} = $opt->no_prompt if ( $opt->no_prompt );
@@ -149,31 +152,33 @@ sub run {
 
     $self->_run_master($run_args);
     return;
+  } else {
+    $self->env( "worker_config_file" => $config_file );
   }
 
   # all other stages have this in commong
   die "no config file given" unless ( -f $config_file );
-  my $settings = retrieve($config_file);
+  my $settings = jslurp($config_file);
 
   # keep current env settings, only add saved settings, no overwrite
-  my %env = $self->env;
-  $self->env( { %{ $settings->{env} }, %env } );
+  my $env = $self->env;
+  $self->env( { %{ $settings->{env} }, %$env } );
   $self->config( $settings->{config} );
 
   if ( $opt->stage eq 'worker' ) {
     # WORKER
     Bio::Grid::Run::SGE::Worker->new(
+      log    => $self->log,
       task   => $run_args->{task},
       config => $self->config,
       env    => $self->env
     )->run;
-
   } elsif ( $opt->stage eq 'node_log' ) {
     #NODE LOG
-    _run_post_task( $config_file, $opt->node_log );
+    _run_post_task(  $opt->node_log );
   } elsif ( $opt->stage eq 'post_task' ) {
     #POST TASK
-    _run_post_task( $config_file, $opt->post_task, $run_args->{post_task} );
+    _run_post_task( $opt->post_task, $run_args->{post_task} );
   }
 }
 
@@ -268,7 +273,7 @@ sub _run_post_task {
   $log->notify;
 
   # run post task, if desired
-  $post_task->( { env => $self->env, config => $self->config } )
+  $post_task->()
     if ( $post_task && !$self->config->{no_post_task} );
 }
 

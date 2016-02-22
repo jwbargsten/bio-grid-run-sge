@@ -35,7 +35,8 @@ has log                 => ( is => 'rw', required   => 1 );
 sub _build_failed_update_file {
   my ($self) = @_;
 
-  my ( $tmp_dir, $job_name, $job_id ) = @{ $self->c }{qw/tmp_dir job_name job_id/};
+  my $tmp_dir = $self->env->{tmp_dir};
+  my ($job_name, $job_id ) = @{ $self->c }{qw/job_name_save job_id/};
   my $update_log_file = catfile( $tmp_dir, "update.$job_name.j$job_id.sh" );
   return $update_log_file;
 }
@@ -43,7 +44,8 @@ sub _build_failed_update_file {
 sub _build_failed_log_file {
   my ($self) = @_;
 
-  my ( $tmp_dir, $job_name, $job_id ) = @{ $self->c }{qw/tmp_dir job_name job_id/};
+  my $tmp_dir = $self->env->{tmp_dir};
+  my ($job_name, $job_id ) = @{ $self->c }{qw/job_name_save job_id/};
   my $failed_log_file = catfile( $tmp_dir, "log.$job_name.j$job_id.txt" );
 
   return $failed_log_file;
@@ -52,7 +54,8 @@ sub _build_failed_log_file {
 sub _build_failed_restart_file {
   my ($self) = @_;
 
-  my ( $tmp_dir, $job_name, $job_id ) = @{ $self->c }{qw/tmp_dir job_name job_id/};
+  my $tmp_dir = $self->env->{tmp_dir};
+  my ($job_name, $job_id ) = @{ $self->c }{qw/job_name_save job_id/};
   my $failed_restart_file = catfile( $tmp_dir, "restart.$job_name.j$job_id.sh" );
 
   return $failed_restart_file;
@@ -86,8 +89,9 @@ sub analyse {
 
   $self->log->info("Creating node log.");
 
-  my $c           = $self->c;
-  my $config_file = $self->config_file;
+  my $conf           = $self->cconfig;
+  my $env = $self->env;
+  my $config_file = $env->{
   my $job_name    = $c->{job_name};
   my $job_id      = $c->{job_id};
 

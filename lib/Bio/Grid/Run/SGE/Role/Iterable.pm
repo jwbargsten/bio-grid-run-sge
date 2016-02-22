@@ -20,7 +20,7 @@ before range => sub{
     
     confess "range problems: [" . ( $idx_range ? join( ",", @$idx_range ) : $idx_range ) . "]"
         unless ( $idx_range && @$idx_range >= 2 );
-    confess "You specified a range that is bigger than the number of combinations"
+    confess "You specified a range that is bigger than the number of combinations ($idx_range->[0], $idx_range->[1]), ". $self->num_comb
         if ( $idx_range->[1] >= $self->num_comb );
         #FIXME more range checks
 
