@@ -13,19 +13,21 @@ use Bio::Grid::Run::SGE::Log::Notify::Jabber;
 use Bio::Grid::Run::SGE::Log::Notify::Mail;
 use Bio::Gonzales::Util::Cerial;
 use Path::Tiny;
+use Data::Dumper;
+
 
 use Sys::Hostname;
 
 # VERSION
 
-has config_file         => ( is => 'rw', required   => 1 );
-has c                   => ( is => 'rw', required   => 1 );
+has config              => ( is => 'rw', required   => 1 );
+has env                 => ( is => 'rw', required   => 1 );
 has failed_restart_file => ( is => 'rw', lazy_build => 1 );
 has failed_log_file     => ( is => 'rw', lazy_build => 1 );
 has failed_update_file  => ( is => 'rw', lazy_build => 1 );
 has attempts            => ( is => 'rw', lazy_build => 1 );
 has _log                => ( is => 'rw', default    => sub { [] } );
-has _node_log           => ( is => 'rw', default    => sub { [] } );
+has _task_log           => ( is => 'rw', default    => sub { [] } );
 has _cmd_script         => ( is => 'rw', default    => sub { [] } );
 has num_jobs            => ( is => 'rw', default    => 0 );
 has num_jobs_skipped    => ( is => 'rw', default    => 0 );
@@ -35,8 +37,8 @@ has log                 => ( is => 'rw', required   => 1 );
 sub _build_failed_update_file {
   my ($self) = @_;
 
-  my $tmp_dir = $self->env->{tmp_dir};
-  my ($job_name, $job_id ) = @{ $self->c }{qw/job_name_save job_id/};
+  my $tmp_dir = $self->config->{tmp_dir};
+  my ( $job_name, $job_id ) = @{ $self->env }{qw/job_name_save job_id/};
   my $update_log_file = catfile( $tmp_dir, "update.$job_name.j$job_id.sh" );
   return $update_log_file;
 }
@@ -44,8 +46,8 @@ sub _build_failed_update_file {
 sub _build_failed_log_file {
   my ($self) = @_;
 
-  my $tmp_dir = $self->env->{tmp_dir};
-  my ($job_name, $job_id ) = @{ $self->c }{qw/job_name_save job_id/};
+  my $tmp_dir = $self->config->{tmp_dir};
+  my ( $job_name, $job_id ) = @{ $self->env }{qw/job_name_save job_id/};
   my $failed_log_file = catfile( $tmp_dir, "log.$job_name.j$job_id.txt" );
 
   return $failed_log_file;
@@ -54,8 +56,8 @@ sub _build_failed_log_file {
 sub _build_failed_restart_file {
   my ($self) = @_;
 
-  my $tmp_dir = $self->env->{tmp_dir};
-  my ($job_name, $job_id ) = @{ $self->c }{qw/job_name_save job_id/};
+  my $tmp_dir = $self->config->{tmp_dir};
+  my ( $job_name, $job_id ) = @{ $self->env }{qw/job_name_save job_id/};
   my $failed_restart_file = catfile( $tmp_dir, "restart.$job_name.j$job_id.sh" );
 
   return $failed_restart_file;
@@ -63,7 +65,7 @@ sub _build_failed_restart_file {
 
 sub _build_attempts {
   my ($self) = @_;
-  return $self->c->{notification_attempts} // 3;
+  return $self->config->{notification_attempts} // 3;
 }
 
 sub _report_log {
@@ -72,9 +74,9 @@ sub _report_log {
   return;
 }
 
-sub _report_node_log {
+sub _report_task_log {
   my $self = shift;
-  push @{ $self->_node_log }, @_;
+  push @{ $self->_task_log }, @_;
   return;
 }
 
@@ -87,15 +89,15 @@ sub _report_cmd {
 sub analyse {
   my ($self) = @_;
 
-  $self->log->info("Creating node log.");
+  $self->log->info("Creating task log.");
 
-  my $conf           = $self->cconfig;
-  my $env = $self->env;
-  my $config_file = $env->{
-  my $job_name    = $c->{job_name};
-  my $job_id      = $c->{job_id};
+  my $conf        = $self->config;
+  my $env         = $self->env;
+  my $config_file = $env->{worker_config_file};
+  my $job_name    = $env->{job_name_save};
+  my $job_id      = $env->{job_id};
 
-  my $log_dir = my_glob( $c->{log_dir} );
+  my $log_dir = my_glob( $conf->{log_dir} );
 
   my $something_crashed;
   my $num_skipped = 0;
@@ -105,9 +107,9 @@ sub analyse {
   $self->_report_log( 'restart failed jobs: ' . $self->failed_restart_file );
   $self->_report_log( 'update job states: ' . $self->failed_update_file, '' );
 
-  $self->_report_log( 'working dir: ' . $c->{working_dir} );
-  $self->_report_log( 'result dir: ' . $c->{result_dir} );
-  $self->_report_log( 'tmp dir: ' . $c->{tmp_dir}, '' );
+  $self->_report_log( 'working dir: ' . $conf->{working_dir} );
+  $self->_report_log( 'result dir: ' . $conf->{result_dir} );
+  $self->_report_log( 'tmp dir: ' . $conf->{tmp_dir}, '' );
 
   my %jobs_with_log;
 
@@ -142,7 +144,7 @@ sub analyse {
 
     #check for successful excecution message at the last line of the worker log
     unless ( $log_data->{'comp.end'} ) {
-      #this node crashed, no end msg
+      #this task crashed, no end msg
       #restart the whole thing
       $something_crashed++;
       $self->_report_crashed_job(
@@ -179,11 +181,11 @@ sub analyse {
   }
 
   my $no_jobs_ran_at_all;
-  my $num_jobs = 'n/a';
-  if ( exists( $c->{range} ) ) {
-    $num_jobs = $c->{range}[1] - $c->{range}[0] + 1;
+  my $num_jobs = 0;
+  if ( exists( $env->{job_range} ) ) {
+    $num_jobs = $env->{job_range}[1] - $env->{job_range}[0] + 1;
   MISSING_JOBS:
-    for ( my $i = $c->{range}[0]; $i <= $c->{range}[1]; $i++ ) {
+    for ( my $i = $env->{job_range}[0]; $i <= $env->{job_range}[1]; $i++ ) {
       unless ( exists( $jobs_with_log{$i} ) ) {
         $something_crashed++;
         if ( $STD_JOB_CMD && $STD_WORKER_WD ) {
@@ -191,7 +193,7 @@ sub analyse {
             {
               job_cmd => $STD_JOB_CMD,
               job_id  => $job_id,
-              task_id      => $i,
+              task_id => $i,
               cwd     => $STD_WORKER_WD,
             }
           );
@@ -208,7 +210,7 @@ sub analyse {
   $self->num_jobs($num_jobs);
   $self->num_jobs_skipped($num_skipped);
 
-  $self->_report_log( ( $num_jobs || 'n/a' ) . " jobs in total" );
+  $self->_report_log( $num_jobs   . " jobs in total" );
   $self->_report_log( '(' . $num_skipped . " jobs did not need to run again)" ) if ($num_skipped);
   if ($no_jobs_ran_at_all) {
     $self->_report_log("obviously, no jobs were run at all");
@@ -231,7 +233,7 @@ sub analyse {
 
     $self->_report_log(@log_entries);
   } else {
-    $self->_report_log('all nodes finished successfully');
+    $self->_report_log('all tasks finished successfully');
   }
 
   return;
@@ -240,15 +242,15 @@ sub analyse {
 sub _report_crashed_job {
   my ( $self, $log_data, $s ) = @_;
 
-  $self->_report_cmd("#NODE: $log_data->{id}; LOG: $s->{log_file}");
+  $self->_report_cmd("#TASK: $log_data->{task_id}; LOG: $s->{log_file}");
   #replace job array numbers with worker id, to emulate the environment of the original array job
 
   $self->_report_cmd(
-    "cd '$log_data->{cwd}' && $s->{job_cmd} --range $s->{range} --job_id $s->{job_id} --id $log_data->{id}");
-  $self->_report_node_log( "Node " . $log_data->{id} . " crashed" );
-  $self->_report_node_log("    log: $s->{log_file}");
-  $self->_report_node_log("    err: $s->{err_file}");
-  $self->_report_node_log("    out: $s->{out_file}");
+    "cd '$log_data->{cwd}' && $s->{job_cmd} --range $s->{range} --job_id $s->{job_id} --task_id $log_data->{task_id}");
+  $self->_report_task_log( "Task " . $log_data->{task_id} . " crashed" );
+  $self->_report_task_log("    log: $s->{log_file}");
+  $self->_report_task_log("    err: $s->{err_file}");
+  $self->_report_task_log("    out: $s->{out_file}");
 
   return;
 }
@@ -256,11 +258,11 @@ sub _report_crashed_job {
 sub _report_missing_job {
   my ( $self, $s ) = @_;
 
-  $self->_report_cmd("#NODE: $s->{id}; NO_LOG");
+  $self->_report_cmd("#TASK: $s->{task_id}; NO_LOG");
   #replace job array numbers with worker id, to emulate the environment of the original array job
 
   $self->_report_cmd("cd '$s->{cwd}' && $s->{job_cmd} --job_id $s->{job_id} --task_id $s->{task_id}");
-  $self->_report_node_log( "Node " . $s->{task_id} . " crashed, NO_LOG NO_ERR NO_OUT" );
+  $self->_report_task_log( "Task " . $s->{task_id} . " crashed, NO_LOG NO_ERR NO_OUT" );
 
   return;
 }
@@ -268,29 +270,31 @@ sub _report_missing_job {
 sub _report_error_job {
   my ( $self, $log_data, $s ) = @_;
 
-  $self->_report_cmd("#NODE: $log_data->{id}; LOG: $s->{log_file}");
+  $self->_report_cmd("#TASK: $log_data->{task_id}; LOG: $s->{log_file}");
 
   for my $t ( @{ $log_data->{'comp.task.exit.error'} } ) {
     my ( $range, $files ) = split /\s/, $t, 2;
 
     $self->_report_cmd(
-      "cd '$log_data->{cwd}' && $s->{job_cmd} --range $range --job_id $s->{job_id} --task_id $log_data->{task_id}");
-    $self->_report_node_log( "Node " . $log_data->{task_id} . " had error(s)" );
-    $self->_report_node_log("    log: $s->{log_file}");
-    $self->_report_node_log("    err: $s->{err_file}");
-    $self->_report_node_log("    out: $s->{out_file}");
+      "cd '$log_data->{cwd}' && $s->{job_cmd} --range $range --job_id $s->{job_id} --task_id $log_data->{task_id}"
+    );
+    $self->_report_task_log( "Task " . $log_data->{task_id} . " had error(s)" );
+    $self->_report_task_log("    log: $s->{log_file}");
+    $self->_report_task_log("    err: $s->{err_file}");
+    $self->_report_task_log("    out: $s->{out_file}");
   }
   return;
 }
 
 sub notify {
   my ($self) = @_;
-  my $c = $self->c;
+  my $conf = $self->config;
 
   # reread config and merge it to get the passwords for the notify stuff
   # FIXME read with new functionality
-  $c = { %{ Bio::Grid::Run::SGE::Config->new->config }, %$c };
-  return unless ( $c->{notify} );
+  return unless ( $conf->{notify} );
+
+  my $notify = $conf->{notify};
 
   my %info = (
     subject => '[LOG]' . $self->subject(),
@@ -298,9 +302,9 @@ sub notify {
     from    => $self->from_address(),
   );
 
-  if ( $c->{notify}{mail} ) {
-    $c->{notify}{mail} = [ $c->{notify}{mail} ] unless ( ref $c->{notify}{mail} eq 'ARRAY' );
-    for my $mail ( @{ $c->{notify}{mail} } ) {
+  if ( $notify->{mail} ) {
+    $notify->{mail} = [ $notify->{mail} ] unless ( ref $notify->{mail} eq 'ARRAY' );
+    for my $mail ( @{ $notify->{mail} } ) {
       my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new( %$mail, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
         # notify function returns 1 on error. If this happens, try more times
@@ -308,9 +312,9 @@ sub notify {
       }
     }
   }
-  if ( $c->{notify}{jabber} ) {
-    $c->{notify}{jabber} = [ $c->{notify}{jabber} ] unless ( ref $c->{notify}{jabber} eq 'ARRAY' );
-    for my $jid ( @{ $c->{notify}{jabber} } ) {
+  if ( $notify->{jabber} ) {
+    $notify->{jabber} = [ $notify->{jabber} ] unless ( ref $notify->{jabber} eq 'ARRAY' );
+    for my $jid ( @{ $notify->{jabber} } ) {
       my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new( %$jid, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
         # notify function returns 1 on error. If this happens, try more times
@@ -318,8 +322,8 @@ sub notify {
       }
     }
   }
-  if ( $c->{notify}{script} ) {
-    my $bin = $c->{notify}{script};
+  if ( $notify->{script} ) {
+    my $bin = $notify->{script};
     if ( -x $bin ) {
       open my $fh, '|-', $bin or die "Can't pipe to script >> $bin <<: $!";
       say $fh jfreeze( \%info );
@@ -332,14 +336,15 @@ sub notify {
 
 sub subject {
   my $self = shift;
-  my $c    = $self->c;
+  my $conf = $self->config;
+  my $env  = $self->env;
 
   return
       '['
     . localtime . ']['
-    . $c->{job_id} . ']['
+    . $env->{job_id} . ']['
     . $self->log_status . '] '
-    . $c->{job_name} . ' ('
+    . $env->{job_name_save} . ' ('
     . $self->from_address() . ')';
 }
 
@@ -366,9 +371,9 @@ sub from_address {
 
 sub gen_report {
   my ( $self, $full ) = @_;
-  my @node_report = @{ $self->_node_log };
-  @node_report = ( @node_report[ 0 .. 13 ], '...' ) if ( @node_report > 17 && !$full );
-  return join( "\n", $self->subject(), '', @{ $self->_log }, '', @node_report ) . "\n";
+  my @task_report = @{ $self->_task_log };
+  @task_report = ( @task_report[ 0 .. 13 ], '...' ) if ( @task_report > 17 && !$full );
+  return join( "\n", $self->subject(), '', @{ $self->_log }, '', @task_report ) . "\n";
 }
 
 sub restart_script {
@@ -402,20 +407,22 @@ sub write {
 sub _write_update_script {
   my ($self) = @_;
 
-  my $c = $self->c;
+  my $conf = $self->config;
+  my $env  = $self->env;
 
-  my @post_log_cmd = ( $c->{submit_bin} );
-  push @post_log_cmd, '-S', $c->{perl_bin};
-  push @post_log_cmd, '-N', join( '_', 'ERRpost', $c->{job_id}, $c->{job_name} );
-  push @post_log_cmd, '-e', $c->{stderr_dir};
-  push @post_log_cmd, '-o', $c->{stdout_dir};
-  push @post_log_cmd, $c->{worker_env_script};
-  push @post_log_cmd, @{ $c->{cmd} }, '--node_log', $c->{job_id}, $self->config_file;
+  my @post_log_cmd = ( $conf->{submit_bin} );
+  push @post_log_cmd, '-S', $env->{perl_bin};
+  push @post_log_cmd, '-N', join( '_', 'ERRpost', $env->{job_id}, $env->{job_name_save} );
+  push @post_log_cmd, '-e', $conf->{stderr_dir};
+  push @post_log_cmd, '-o', $conf->{stdout_dir};
+  push @post_log_cmd, $env->{worker_env_script};
+  push @post_log_cmd, $env->{script_bin}, '--stage', 'log', '--job_id', $env->{job_id},
+    $env->{worker_config_file};
 
   my $update_log_file = $self->failed_update_file;
 
   open my $update_log_fh, '>', $update_log_file or confess "Can't open filehandle: $!";
-  print $update_log_fh join( " ", "cd", "'" . $c->{working_dir} . "'", '&&', @post_log_cmd ), "\n";
+  print $update_log_fh join( " ", "cd", "'" . $conf->{working_dir} . "'", '&&', @post_log_cmd ), "\n";
   $update_log_fh->close;
 
   chmod 0755, $update_log_file;

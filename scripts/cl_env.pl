@@ -19,7 +19,7 @@ job->run(
       job->log->info("Running $idx_item->[0] -> $result_prefix");
       jspew( $result_prefix . ".env.json",  \%ENV );
       jspew( $result_prefix . ".item.json", $idx_item );
-      sleep 3;
+      sleep 1;
 
       return 1;
     },

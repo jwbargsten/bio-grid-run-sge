@@ -123,8 +123,8 @@ sub run {
 
   usage( $usage, $run_args->{usage} ) if ( $opt->help );
 
-  $self->env->{job_id}  //= $opt->job_id;
-  $self->env->{task_id} //= $opt->task_id;
+  $self->env->{job_id}  = $opt->job_id if(defined($opt->job_id));
+  $self->env->{task_id} = $opt->task_id if(defined($opt->task_id));
   if ( $opt->range ) {
     my @range = split /[-,]/, $opt->range;
 
@@ -142,7 +142,8 @@ sub run {
 
     $self->env( "config_file" => $config_file );
 
-    $self->populate_config();
+  $self->config( $self->read_config() );
+    
     $self->config->{no_prompt} = $opt->no_prompt if ( $opt->no_prompt );
     $self->hide_notify_settings;
     $self->set_working_dir;
@@ -152,8 +153,6 @@ sub run {
 
     $self->_run_master($run_args);
     return;
-  } else {
-    $self->env( "worker_config_file" => $config_file );
   }
 
   # all other stages have this in commong
@@ -165,6 +164,9 @@ sub run {
   $self->env( { %{ $settings->{env} }, %$env } );
   $self->config( $settings->{config} );
 
+  # read back the notify settings that were previously hidden
+  $self->config(notify => $self->read_config()->{notify});
+
   if ( $opt->stage eq 'worker' ) {
     # WORKER
     Bio::Grid::Run::SGE::Worker->new(
@@ -173,16 +175,16 @@ sub run {
       config => $self->config,
       env    => $self->env
     )->run;
-  } elsif ( $opt->stage eq 'node_log' ) {
-    #NODE LOG
-    _run_post_task(  $opt->node_log );
+  } elsif ( $opt->stage eq 'log' ) {
+    #TASK LOG
+    $self->_run_post_task();
   } elsif ( $opt->stage eq 'post_task' ) {
     #POST TASK
-    _run_post_task( $opt->post_task, $run_args->{post_task} );
+    $self->_run_post_task( $run_args->{post_task} );
   }
 }
 
-sub populate_config {
+sub read_config {
   my $self = shift;
 
   #1. LOAD RC FILE (global conf)
@@ -194,16 +196,16 @@ sub populate_config {
   # 3. load from config file *.job.yml
   my $conf_job = $config_file && -f $config_file ? yslurp($config_file) : {};
 
-  my %config = ( %$conf_rc, %$conf_job );
-  $self->config( \%config );
+  my %config = (%{$self->config}, %$conf_rc, %$conf_job );
 
   # from additional cluster script args
   if ( @ARGV && @ARGV > 0 ) {
-    $self->config->{args} //= [];
-    push @{ $self->config->{args} }, @ARGV;
+    $config{args} //= [];
+    push @{ $config{args} }, @ARGV;
   }
 
-  confess "no configuration found, file: $config_file" unless (%config);
+  confess "no configuration found, file: $config_file" unless (%$conf_rc || %$conf_job);
+  return \%config;
 }
 
 # hide notify settings, because they may contain passwords

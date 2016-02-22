@@ -21,6 +21,7 @@ use Bio::Gonzales::Util::Cerial;
 use List::MoreUtils qw/uniq/;
 use Capture::Tiny 'capture';
 use Config;
+use Bio::Gonzales::Util qw/sys_fmt/;
 use FindBinNew qw($Bin $Script);
 FindBinNew::again();
 
@@ -69,7 +70,7 @@ sub populate_env {
   {
     my $name = 'result';
     $name = join ".", $jn, $name if ( $config->{prefix_output_dirs} );
-    $config->{result_dir} = catfile( $config->{working_dir}, $name );
+    $config->{result_dir} //= catfile( $config->{working_dir}, $name );
   }
 
   $env->{worker_config_file} = catfile( $config->{tmp_dir}, $jn . '.job.conf.json' );
@@ -173,11 +174,11 @@ sub run {
 
   my $submit_cmd = $self->build_exec_env;
 
-  $self->log->info( "Running: " . join( " ", @$submit_cmd ) );
+  $self->log->info( "Running: " . $submit_cmd );
 
   # capture from external command
   my ( $stdout, $stderr, $exit ) = capture {
-    system(@$submit_cmd);
+    system($submit_cmd);
   };
 
   if ( $exit != 0 ) {
@@ -198,7 +199,7 @@ sub run {
   open my $main_fh, '>',
     catfile( $conf->{log_dir}, sprintf( "main.%s.j%s.cmd", $env->{job_name_save}, $env->{job_id} ) )
     or confess "Can't open filehandle: $!";
-  say $main_fh "cd '" . fastcwd . "' && " . join( " ", @$submit_cmd );
+  say $main_fh "cd '" . fastcwd . "' && " . $submit_cmd;
   $main_fh->close;
   $self->queue_post_task() if ( $env->{job_id} >= 0 );
 }
@@ -246,7 +247,7 @@ sub build_exec_env {
   push @cmd, $env->{worker_env_script}, $env->{script_bin} , '--stage', 'worker',
     $env->{worker_config_file};
 
-  $env->{job_cmd} = \@cmd;
+  $env->{job_cmd} = sys_fmt(\@cmd);
   $env->{job_range} = [ $from, $to ];
 
   jspew( $env->{worker_config_file},{ config => $conf, env => $env }) ;
@@ -311,7 +312,7 @@ sub queue_post_task {
 
   #push @cmd, @{ $self->submit_params };
 
-  my @post_cmd = ( $env->{worker_env_script}, $env->{script_bin} , '--post_task', $env->{job_id}, $env->{worker_config_file} );
+  my @post_cmd = ( $env->{worker_env_script}, $env->{script_bin} , '--stage', 'post_task', '--job_id', $env->{job_id}, $env->{worker_config_file} );
 
   $self->log->info("post processing: " . join( " ", @cmd, @hold_arg, @post_cmd ));
 
