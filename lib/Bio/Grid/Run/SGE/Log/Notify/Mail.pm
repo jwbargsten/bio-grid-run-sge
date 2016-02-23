@@ -24,7 +24,7 @@ sub notify {
 
   unshift @{ $Mail::Sendmail::mailcfg{'smtp'} }, $smtp_server if ($smtp_server);
   my %mail = (
-    to => $mail,
+    To => $mail,
     %$info
   );
 

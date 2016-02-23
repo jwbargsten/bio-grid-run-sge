@@ -114,7 +114,8 @@ sub prepare {
   my $conf = $self->config;
   my $env = $self->env;
 
-  confess "No input given" unless ( @{ $conf->{input} } > 0 );
+  #confess "No input given" unless ( @{ $conf->{input} } > 0 );
+  $conf->{input} //= [];
 
   # FIXME vllt in job.pm init?
   my $submit_bin = -f $conf->{submit_bin} ? $conf->{submit_bin} : which( $conf->{submit_bin} );
