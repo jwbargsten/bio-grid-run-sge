@@ -19,7 +19,6 @@ use 5.010;
 our $VERSION = 0.01_01;
 
 has 'log' => ( is => 'rw', lazy_build => 1 );
-has [ 'pre_task', 'post_task', 'task', ] => ( is => 'rw' );
 
 has _config => ( is => 'rw', default => sub { {} } );
 has _env    => ( is => 'rw', default => sub { {} } );
@@ -31,17 +30,18 @@ sub BUILD {
   my $env  = $self->env;
 
   #task number, 1 based, set it here
-  my $task_id = exists( $ENV{SGE_TASK_ID} ) && $ENV{SGE_TASK_ID} ne 'undefined' ? $ENV{SGE_TASK_ID} : -1;
-  $env->{task_id}   = $task_id;
+  $env->{task_id}   = $ENV{SGE_TASK_ID} if ( $ENV{SGE_TASK_ID} && $ENV{SGE_TASK_ID} ne 'undefined' );
   $conf->{job_name} = 'cluster_job';
   $env->{job_id}    = $ENV{JOB_ID} // -1;
 
-  $env->{"task_first"}    = $ENV{SGE_TASK_FIRST}    // -1;
-  $env->{"task_last"}     = $ENV{SGE_TASK_LAST}     // -1;
-  $env->{"task_stepsize"} = $ENV{SGE_TASK_STEPSIZE} // -1;
+  $env->{"task_first"}    = $ENV{SGE_TASK_FIRST}    if ( $ENV{SGE_TASK_FIRST} );
+  $env->{"task_last"}     = $ENV{SGE_TASK_LAST}     if ( $ENV{SGE_TASK_LAST} );
+  $env->{"task_stepsize"} = $ENV{SGE_TASK_STEPSIZE} if ( $ENV{SGE_TASK_STEPSIZE} );
 
-  $env->{is_first_task} = $env->{task_first} > 0 && $task_id == $env->{task_first} ? 1 : 0;
-  $env->{is_last_task}  = $env->{task_last} > 0  && $task_id == $env->{task_last}  ? 1 : 0;
+  $env->{is_first_task} = $env->{task_first} > 0 && $env->{task_id} == $env->{task_first} ? 1 : 0
+    if ( $env->{task_first} && $env->{task_id} );
+  $env->{is_last_task} = $env->{task_last} > 0 && $env->{task_id} == $env->{task_last} ? 1 : 0
+    if ( $env->{task_last} && $env->{task_id} );
 
   $self->env( "rc_file" => "$ENV{HOME}/.bio-grid-run-sge.conf.yml" );
 }
@@ -265,7 +265,7 @@ sub _run_master {
     $run_args->{pre_task}->($master);
   }
 
-  $self->log->info( "CONFIGURATION:", $master->to_string );
+  $self->log->info( "CONFIGURATION:", "(" . $self->env->{worker_config_file} . ")", $master->to_string );
   if ( $c->{no_prompt} || prompt( "run job? [yn]", 'y' ) eq 'y' ) {
     $master->run;
   }
@@ -316,50 +316,109 @@ sub _Get_config_file {
 __PACKAGE__->meta->make_immutable();
 
 __END__
-__END__
 
 =head1 NAME
 
-
+Bio::Grid::Run::SGE::Job - the container for settings and important functions
 
 =head1 SYNOPSIS
 
-  #wenn export, dann hier im qw()
+    use Bio::Grid::Run::SGE::Job;
+
+    my $j = Bio::Grid::Run::SGE::Job->new;
+    $j->run(
+      pre_task  => sub {...},
+      task      => sub {...},
+      post_task => sub {...},
+      usage     => sub {...}
+    );
+
 
 =head1 DESCRIPTION
 
-=head1 OPTIONS
+This class is never created directly, it is always created via L <Bio::Grid::Run::SGE>
+and exported as C <job()> function:
+
+    use Bio::Grid::Run::SGE;
+    
+    my $j = job();
+    $j->run(...);
+
 =head1 ATTRIBUTES
 
-=head1 SUBROUTINES
+=item B<< my $log = $j->log() >>
+
+Returns a L<Bio::Gonzales::Util::Log> logging instance. Useful functions are 
+=over 4
+
+=item * C<$log->debug("text")>
+
+=item * C<$log->info("text")>
+
+=item * C<$log->warn("text")>
+
+=item * C<$log->error("text")>
+
+=item * C<$log->fatal("text")>
+
+=item * C<$log->fatal_confess("text")>
+
+=back
+
 =head1 METHODS
+
+=head2 Settings-related 
 
 =over 4
 
-=item B<< my_sys(@command) >>
+=item B<< my $job_config = $j->conf >> or B<< my $job_config = $j->config >>
 
-=item B<< my_sys($command) >>
+Get (or change) the job configuration.
 
-Runs command eiter as array or as simple string (see also L<system>) and dies
-if something goes wrong.
+=item B<< my $job_environment = $j->env >>
 
-=item B<< my_sys_non_fatal(@command) >>
+Get the job environment. 
 
-=item B<< my_sys_non_fatal($command) >>
+You can also change stuff, but be careful; you have been warned!
+
+=item B<< my $job_id = $j->job_id >>
+
+The same as C<$j->env('job_id')>.
+
+=item B<< my $task_id = $j->task_id >>
+
+The same as C<$j->env('task_id')>.
+
+=back
+
+=head2 System call-related
+
+=over 4
+
+=item B<< $j->sys(@command) >>
 
 Runs command eiter as array or as simple string (see also L<system>) and gives
 a warning message if something goes wrong.
 
-It returns C<undef> is something went wrong and C<1/true> if the exit code of
+It returns C<undef> is something went wrong and 1 if the exit code of
 the program was ok.
 
+=item B<< $j->sys_fatal(@command) >>
 
+Runs command eiter as array or as simple string (see also L<system>) and dies
+if something goes wrong.
+
+=item B<< $j->sys_pipe(@command) >>
+
+=item B<< $j->sys_pipe_fatal(@command) >>
 
 =back
 
 =head1 LIMITATIONS
 
 =head1 SEE ALSO
+
+L<Bio::Grid::Run::SGE>
 
 =head1 AUTHOR
 
