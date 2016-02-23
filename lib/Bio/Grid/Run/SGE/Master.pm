@@ -31,7 +31,7 @@ has 'env'    => ( is => 'rw', required => 1 );
 has 'config' => ( is => 'rw', required => 1 );
 has 'log'    => ( is => 'rw', required => 1 );
 
-has 'parts' => ( is => 'rw', default  => 0 );
+has 'parts' => ( is => 'rw', default => 0 );
 
 has 'iterator' => ( is => 'rw', lazy_build => 1 );
 
@@ -44,8 +44,8 @@ sub populate_env {
   $env->{job_name_save} = $jn;
   $env->{job_id} //= -1;
 
-  $env->{script_bin}         //= "$Bin/$Script";    # vorher cmd
-  $env->{script_dir}         //= $Bin;
+  $env->{script_bin}            //= "$Bin/$Script";    # vorher cmd
+  $env->{script_dir}            //= $Bin;
   $config->{prefix_output_dirs} //= 1;
   # FIXME wo config setzten, nur für master nötig?
   $config->{submit_bin}    //= 'qsub';
@@ -90,8 +90,8 @@ sub BUILD {
 sub to_string {
   my ($self) = @_;
 
-  my %conf = %{$self->config};
-  my %env = %{$self->env};
+  my %conf = %{ $self->config };
+  my %env  = %{ $self->env };
   $conf{input} = clone( $conf{input} );
 
   for my $in ( @{ $conf{input} } ) {
@@ -103,7 +103,7 @@ sub to_string {
       $in->{elements} = \@elements;
     }
   }
-  my $string = p(\%conf );
+  my $string = p( \%conf );
 
   return $string;
 }
@@ -112,7 +112,7 @@ sub prepare {
   my ($self) = @_;
 
   my $conf = $self->config;
-  my $env = $self->env;
+  my $env  = $self->env;
 
   #confess "No input given" unless ( @{ $conf->{input} } > 0 );
   $conf->{input} //= [];
@@ -130,8 +130,8 @@ sub prepare {
     confess "No input given" unless ( exists( $i->{elements} ) && @{ $i->{elements} } );
   }
 
-  $conf->{working_dir} = rel2abs($conf->{working_dir});
-  confess "working dir does not exist: " . $conf->{working_dir}  unless ( -d $conf->{working_dir} );
+  $conf->{working_dir} = rel2abs( $conf->{working_dir} );
+  confess "working dir does not exist: " . $conf->{working_dir} unless ( -d $conf->{working_dir} );
 
   for my $d (qw/log_dir stderr_dir stdout_dir result_dir tmp_dir idx_dir/) {
     $conf->{$d} = expand_path( $conf->{$d} );
@@ -190,12 +190,12 @@ sub run {
 
   $stdout =~ /^Your\s*job(-array)?\s*(\d+)/;
 
-    if ( defined $2 ) {
-      $env->{job_id} = $2;
-    } else {
-      warn "[SUBMIT_WARNING] could not parse job id, using -1 as job id.\nSTDOUT:\n$stdout\nSTDERR:\n$stderr";
-      $env->{job_id} = -1;
-    }
+  if ( defined $2 ) {
+    $env->{job_id} = $2;
+  } else {
+    warn "[SUBMIT_WARNING] could not parse job id, using -1 as job id.\nSTDOUT:\n$stdout\nSTDERR:\n$stderr";
+    $env->{job_id} = -1;
+  }
 
   open my $main_fh, '>',
     catfile( $conf->{log_dir}, sprintf( "main.%s.j%s.cmd", $env->{job_name_save}, $env->{job_id} ) )
@@ -246,13 +246,12 @@ sub build_exec_env {
   push @cmd, @{ $conf->{submit_params} };
 
   $self->write_worker_env_script;
-  push @cmd, $env->{worker_env_script}, $env->{script_bin} , '--stage', 'worker',
-    $env->{worker_config_file};
+  push @cmd, $env->{worker_env_script}, $env->{script_bin}, '--stage', 'worker', $env->{worker_config_file};
 
-  $env->{job_cmd} = sys_fmt(\@cmd);
+  $env->{job_cmd} = sys_fmt( \@cmd );
   $env->{job_range} = [ $from, $to ];
 
-  jspew( $env->{worker_config_file},{ config => $conf, env => $env }) ;
+  jspew( $env->{worker_config_file}, { config => $conf, env => $env } );
   return $env->{job_cmd};
 }
 
@@ -266,7 +265,6 @@ sub write_worker_env_script {
 #!/usr/bin/env perl
 use warnings;
 use strict;
-use List::MoreUtils qw/uniq/;
 
 EOS
 
@@ -276,6 +274,8 @@ EOS
     print $fh "use lib ('" . join( "','", @inc_dirs ) . "');\n"
       if ( @inc_dirs && @inc_dirs > 0 );
   }
+
+  say $fh 'use List::MoreUtils qw/uniq/;';
 
   if ( exists $ENV{PATH} ) {
     my @dirs = uniq( grep {$_} split( /\Q$Config{path_sep}\E/, $ENV{PATH} ) );
@@ -299,10 +299,10 @@ EOF
 }
 
 sub queue_post_task {
-  my ( $self ) = @_;
+  my ($self) = @_;
 
   my $conf = $self->config;
-  my $env = $self->env;
+  my $env  = $self->env;
 
   my @cmd = ( $conf->{submit_bin} );
   push @cmd, '-S', $env->{perl_bin};
@@ -314,11 +314,15 @@ sub queue_post_task {
 
   #push @cmd, @{ $self->submit_params };
 
-  my @post_cmd = ( $env->{worker_env_script}, $env->{script_bin} , '--stage', 'post_task', '--job_id', $env->{job_id}, $env->{worker_config_file} );
+  my @post_cmd = (
+    $env->{worker_env_script},
+    $env->{script_bin}, '--stage', 'post_task', '--job_id', $env->{job_id}, $env->{worker_config_file}
+  );
 
-  $self->log->info("post processing: " . join( " ", @cmd, @hold_arg, @post_cmd ));
+  $self->log->info( "post processing: " . join( " ", @cmd, @hold_arg, @post_cmd ) );
 
-  my $post_cmd_file = catfile( $conf->{tmp_dir}, sprintf( "post.%s.j%s.cmd", $env->{job_name_save}, $env->{job_id} ) );
+  my $post_cmd_file
+    = catfile( $conf->{tmp_dir}, sprintf( "post.%s.j%s.cmd", $env->{job_name_save}, $env->{job_id} ) );
 
   open my $post_fh, '>', $post_cmd_file or confess "Can't open filehandle: $!";
   say $post_fh join( " ", "cd", "'" . fastcwd . "'", '&&', @cmd, @post_cmd );
