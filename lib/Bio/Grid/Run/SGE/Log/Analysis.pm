@@ -341,7 +341,7 @@ sub subject {
 
   return
       '['
-    . localtime . ']['
+    . localtime() . ']['
     . $env->{job_id} . ']['
     . $self->log_status . '] '
     . $env->{job_name_save} . ' ('

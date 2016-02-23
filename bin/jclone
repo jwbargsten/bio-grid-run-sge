@@ -22,7 +22,7 @@ my $prefix = shift;
 die "no prefix" unless ($prefix);
 pod2usage( -exitstatus => 1, -verbose => 0, -message => "$dir is not a directory" ) unless ( -d $dir );
 
-my $date = strftime( "%Y-%m-%d", localtime );
+my $date = strftime( "%Y-%m-%d", localtime() );
 $prefix = $date . "_" . $prefix unless ( $prefix eq '.' );
 say STDERR "prefix is > $prefix <";
 
