@@ -14,7 +14,6 @@ use Scalar::Util qw/blessed/;
 use IO::Prompt::Tiny qw/prompt/;
 use Data::Dumper;
 
-
 use 5.010;
 
 our $VERSION = 0.01_01;
@@ -28,12 +27,22 @@ has _env    => ( is => 'rw', default => sub { {} } );
 sub BUILD {
   my $self = shift;
 
-  #task number, 1 based, set it here
-  my $task_id = exists( $ENV{SGE_TASK_ID} ) && $ENV{SGE_TASK_ID} ne 'undefined' ? $ENV{SGE_TASK_ID} : 0;
-  $self->task_id($task_id);
-  $self->config->{job_name} = 'cluster_job';
+  my $conf = $self->config;
+  my $env  = $self->env;
 
-  $self->job_id( $ENV{JOB_ID} );
+  #task number, 1 based, set it here
+  my $task_id = exists( $ENV{SGE_TASK_ID} ) && $ENV{SGE_TASK_ID} ne 'undefined' ? $ENV{SGE_TASK_ID} : -1;
+  $env->{task_id}   = $task_id;
+  $conf->{job_name} = 'cluster_job';
+  $env->{job_id}    = $ENV{JOB_ID} // -1;
+
+  $env->{"task_first"}    = $ENV{SGE_TASK_FIRST}    // -1;
+  $env->{"task_last"}     = $ENV{SGE_TASK_LAST}     // -1;
+  $env->{"task_stepsize"} = $ENV{SGE_TASK_STEPSIZE} // -1;
+
+  $env->{is_first_task} = $env->{task_first} > 0 && $task_id == $env->{task_first} ? 1 : 0;
+  $env->{is_last_task}  = $env->{task_last} > 0  && $task_id == $env->{task_last}  ? 1 : 0;
+
   $self->env( "rc_file" => "$ENV{HOME}/.bio-grid-run-sge.conf.yml" );
 }
 
@@ -123,8 +132,8 @@ sub run {
 
   usage( $usage, $run_args->{usage} ) if ( $opt->help );
 
-  $self->env->{job_id}  = $opt->job_id if(defined($opt->job_id));
-  $self->env->{task_id} = $opt->task_id if(defined($opt->task_id));
+  $self->env->{job_id}  = $opt->job_id  if ( defined( $opt->job_id ) );
+  $self->env->{task_id} = $opt->task_id if ( defined( $opt->task_id ) );
   if ( $opt->range ) {
     my @range = split /[-,]/, $opt->range;
 
@@ -142,8 +151,8 @@ sub run {
 
     $self->env( "config_file" => $config_file );
 
-  $self->config( $self->read_config() );
-    
+    $self->config( $self->read_config() );
+
     $self->config->{no_prompt} = $opt->no_prompt if ( $opt->no_prompt );
     $self->hide_notify_settings;
     $self->set_working_dir;
@@ -165,7 +174,7 @@ sub run {
   $self->config( $settings->{config} );
 
   # read back the notify settings that were previously hidden
-  $self->config(notify => $self->read_config()->{notify});
+  $self->config( notify => $self->read_config()->{notify} );
 
   if ( $opt->stage eq 'worker' ) {
     # WORKER
@@ -196,7 +205,7 @@ sub read_config {
   # 3. load from config file *.job.yml
   my $conf_job = $config_file && -f $config_file ? yslurp($config_file) : {};
 
-  my %config = (%{$self->config}, %$conf_rc, %$conf_job );
+  my %config = ( %{ $self->config }, %$conf_rc, %$conf_job );
 
   # from additional cluster script args
   if ( @ARGV && @ARGV > 0 ) {
@@ -204,7 +213,7 @@ sub read_config {
     push @{ $config{args} }, @ARGV;
   }
 
-  confess "no configuration found, file: $config_file" unless (%$conf_rc || %$conf_job);
+  confess "no configuration found, file: $config_file" unless ( %$conf_rc || %$conf_job );
   return \%config;
 }
 
@@ -306,6 +315,26 @@ sub _Get_config_file {
 __PACKAGE__->meta->make_immutable();
 
 __END__
+__END__
+
+=head1 NAME
+
+
+
+=head1 SYNOPSIS
+
+  #wenn export, dann hier im qw()
+
+=head1 DESCRIPTION
+
+=head1 OPTIONS
+=head1 ATTRIBUTES
+
+=head1 SUBROUTINES
+=head1 METHODS
+
+=over 4
+
 =item B<< my_sys(@command) >>
 
 =item B<< my_sys($command) >>
@@ -323,3 +352,16 @@ a warning message if something goes wrong.
 It returns C<undef> is something went wrong and C<1/true> if the exit code of
 the program was ok.
 
+
+
+=back
+
+=head1 LIMITATIONS
+
+=head1 SEE ALSO
+
+=head1 AUTHOR
+
+jw bargsten, C<< <jwb at cpan dot org> >>
+
+=cut

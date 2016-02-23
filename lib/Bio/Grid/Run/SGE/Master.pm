@@ -42,6 +42,7 @@ sub populate_env {
   my $config = $self->config;
   ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/csd;
   $env->{job_name_save} = $jn;
+  $env->{job_id} //= -1;
 
   $env->{script_bin}         //= "$Bin/$Script";    # vorher cmd
   $env->{script_dir}         //= $Bin;
@@ -80,6 +81,7 @@ sub populate_env {
 sub BUILD {
   my ( $self, $args ) = @_;
 
+  # FIXME check required options
   $self->populate_env;
 
   $self->prepare;
@@ -187,14 +189,12 @@ sub run {
 
   $stdout =~ /^Your\s*job(-array)?\s*(\d+)/;
 
-  unless ( defined $env->{job_id} ) {
     if ( defined $2 ) {
       $env->{job_id} = $2;
     } else {
       warn "[SUBMIT_WARNING] could not parse job id, using -1 as job id.\nSTDOUT:\n$stdout\nSTDERR:\n$stderr";
       $env->{job_id} = -1;
     }
-  }
 
   open my $main_fh, '>',
     catfile( $conf->{log_dir}, sprintf( "main.%s.j%s.cmd", $env->{job_name_save}, $env->{job_id} ) )
@@ -202,6 +202,7 @@ sub run {
   say $main_fh "cd '" . fastcwd . "' && " . $submit_cmd;
   $main_fh->close;
   $self->queue_post_task() if ( $env->{job_id} >= 0 );
+  return;
 }
 
 sub calc_num_parts {

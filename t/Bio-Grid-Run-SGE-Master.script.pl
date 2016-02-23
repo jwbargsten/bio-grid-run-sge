@@ -7,14 +7,14 @@ use Carp;
 
 use Bio::Grid::Run::SGE;
 
-run_job(
+job->run(
     {
         task => \&do_worker_stuff
     }
 );
 
 sub do_worker_stuff {
-    my ( $c, $result_prefix, $seq_file ) = @_;
+    my ($result_prefix, $seq_file ) = @_;
 
     job->log->info("Running $seq_file -> $result_prefix");
     open my $seq_file_fh, '<', $seq_file or confess "Can't open filehandle: $!";
