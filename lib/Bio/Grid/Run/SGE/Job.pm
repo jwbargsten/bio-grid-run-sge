@@ -63,6 +63,7 @@ sub _store {
 }
 
 sub config { return shift->_store( '_config', @_ ); }
+sub conf   { shift->config(@_) }
 sub env    { return shift->_store( '_env',    @_ ); }
 
 sub _build_log {
