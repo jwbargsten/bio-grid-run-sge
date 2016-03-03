@@ -31,7 +31,6 @@ our ( @EXPORT, @EXPORT_OK, %EXPORT_TAGS );
   timer
   expand_path_rel
   poll_interval
-  result_files
 );
 
 our $LOG =  Bio::Gonzales::Util::Log->new();
@@ -198,22 +197,6 @@ sub poll_interval {
   return int( min( $max_time, $prev_waiting_time * ( 1.6 + rand() ) ) );
 }
 
-sub result_files {
-  my $c = shift;
-
-  my $dir = expand_path( $c->{result_dir} );
-
-  my $file_regex = qr/^\Q$c->{job_name}\E #job name
-                        \.j$c->{job_id} #the job id
-                        \.[0-9]+ #the sge task id
-                        \.t[\-0-9]+(?:\.[\w\-.#]+)? #my task id
-                        (?:\..*)? #suffix
-                        $/x;
-
-  my @paths = path($dir)->children($file_regex);
-
-  return \@paths;
-}
 
 1;
 

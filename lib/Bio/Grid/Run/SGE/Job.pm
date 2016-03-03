@@ -192,6 +192,7 @@ sub run {
     #POST TASK
     $self->_run_post_task( $run_args->{post_task} );
   }
+  return 1;
 }
 
 sub read_config {
@@ -311,6 +312,25 @@ sub _Get_config_file {
   my $base_dir = ( File::Spec->splitpath($config_file) )[1];
   # if config file supplied, do change to conf file directory
   return $config_file, $base_dir;
+}
+
+sub result_files {
+  my $self = shift;
+
+  my $dir = expand_path( $self->conf('result_dir') );
+  my $jn  = $self->env('job_name_save');
+  my $jid = $self->env("job_id");
+
+  my $file_regex = qr/^\Q$jn\E #job name
+                        \.j$jid #the job id
+                        \.[0-9]+ #the sge task id
+                        \.t[\-0-9]+(?:\.[\w\-.#]+)? #my task id
+                        (?:\..*)? #suffix
+                        $/x;
+
+  my @paths = path($dir)->children($file_regex);
+
+  return \@paths;
 }
 
 __PACKAGE__->meta->make_immutable();
