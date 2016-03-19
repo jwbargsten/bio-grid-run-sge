@@ -140,7 +140,7 @@ sub run {
     #RUN TASK
     my $return_status = $self->task->( $result_prefix, @{$infiles} );
     unless ($return_status) {
-      $self->log_status( "comp.task.exit.error:: $comb_idx " . join( "#\0#", @$infiles, $result_prefix ) );
+      $self->log_status( "comp.task.exit.error:: $comb_idx");
     } elsif ( $return_status < 0 ) {
       $self->log_status("comp.task.exit.skip:: $comb_idx");
     } else {
