@@ -271,17 +271,19 @@ EOS
   if ( exists $ENV{PERL5LIB} ) {
     my @inc_dirs = split( /\Q$Config{path_sep}\E/, $ENV{PERL5LIB} );
     @inc_dirs = grep {$_} @inc_dirs;
-    print $fh "use lib ('" . join( "','", @inc_dirs ) . "');\n"
-      if ( @inc_dirs && @inc_dirs > 0 );
+    if ( @inc_dirs && @inc_dirs > 0 ) {
+      say $fh '$ENV{PERL5LIB} //= "";';
+      say $fh '$ENV{PERL5LIB} = "$ENV{PERL5LIB}:' . join( ':', @inc_dirs ) . '";';
+      say $fh "use lib ('" . join( "','", @inc_dirs ) . "');";
+    }
   }
 
-  say $fh 'use List::MoreUtils qw/uniq/;';
-
   if ( exists $ENV{PATH} ) {
+
     my @dirs = uniq( grep {$_} split( /\Q$Config{path_sep}\E/, $ENV{PATH} ) );
     my $path = "'" . join( "','", @dirs ) . "'";
     print $fh <<EOS;
-my \@path = grep { \$_ } uniq(split(/:/, \$ENV{PATH}), $path);
+my \@path = do { my \%seen; grep { !\$seen{\$_}++ } ( split(/:/, \$ENV{PATH}), $path) };
 \$ENV{PATH} = join(":", \@path);
 EOS
   }
