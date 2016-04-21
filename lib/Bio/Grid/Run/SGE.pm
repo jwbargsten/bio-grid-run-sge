@@ -9,7 +9,6 @@ use Carp;
 use Bio::Grid::Run::SGE::Master;
 use Bio::Grid::Run::SGE::Worker;
 use Bio::Grid::Run::SGE::Util qw/my_glob delete_by_regex/;
-use Bio::Grid::Run::SGE::Log::Analysis;
 use Bio::Grid::Run::SGE::Job;
 use Data::Dumper;
 

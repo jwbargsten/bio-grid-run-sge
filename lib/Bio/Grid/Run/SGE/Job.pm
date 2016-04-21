@@ -13,6 +13,7 @@ use Cwd qw/fastcwd/;
 use Scalar::Util qw/blessed/;
 use IO::Prompt::Tiny qw/prompt/;
 use Data::Dumper;
+use Bio::Grid::Run::SGE::Log::Analysis;
 
 use 5.010;
 

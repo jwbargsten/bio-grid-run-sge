@@ -215,6 +215,8 @@ sub analyse {
   if ($no_jobs_ran_at_all) {
     $self->_report_log("obviously, no jobs were run at all");
     $self->num_jobs_failed($num_jobs);
+    $self->env->{num_jobs_failed} = $num_jobs;
+    $self->env->{jobs_successful} = "none";
   } elsif ($something_crashed) {
     # create a log entry with the hostnames and the number of times crashed.
     # often one node has all crashes and with this you can spot it easily in the log file.
@@ -230,10 +232,14 @@ sub analyse {
 
     $self->_report_log( sprintf( "Jobs failed: %s of %s", $num_jobs_failed, $num_jobs ) );
     $self->num_jobs_failed($num_jobs_failed);
+    $self->env->{num_jobs_failed} = $num_jobs_failed;
+    $self->env->{jobs_successful} = "some";
 
     $self->_report_log(@log_entries);
   } else {
     $self->_report_log('all tasks finished successfully');
+    $self->env->{num_jobs_failed} = 0;
+    $self->env->{jobs_successful} = "all";
   }
 
   return;
