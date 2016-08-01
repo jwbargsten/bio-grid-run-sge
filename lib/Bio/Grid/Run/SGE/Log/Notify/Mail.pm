@@ -13,6 +13,7 @@ use Bio::Grid::Run::SGE::Util qw/my_glob/;
 use Email::Sender::Simple qw(sendmail);
 use Email::Simple;
 use Email::Simple::Creator;
+use Email::Sender::Transport::SMTP;
 use Try::Tiny;
 
 has server => ( is => 'rw', required   => 1 );
