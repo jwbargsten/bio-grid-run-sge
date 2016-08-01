@@ -13,17 +13,18 @@ use 5.010;
 
 # VERSION
 
-has log => (is => 'rw', required => 1);
-has jid       => ( is => 'rw', required => 1 );
-has password  => ( is => 'rw', required => 1 );
-has dest      => ( is => 'rw', required => 1 );
-has type      => ( is => 'rw', default  => 'chat' );
-has wait_time => ( is => 'rw', default  => 7 );
+has log       => ( is => 'rw', required   => 1 );
+has jid       => ( is => 'rw', required   => 1 );
+has password  => ( is => 'rw', required   => 1 );
+has type      => ( is => 'rw', default    => 'chat' );
+has wait_time => ( is => 'rw', default    => 7 );
+has 'to'      => ( is => 'rw', required   => 1 );
+has log       => ( is => 'rw', 'required' => 1 );
 
 sub notify {
   my $self = shift;
   my $info = shift;
-  my $dest = ref $self->dest eq 'ARRAY' ? $self->dest : [ $self->dest ];
+  my $dest = ref $self->to eq 'ARRAY' ? $self->to : [ $self->to ];
 
   my $j = AnyEvent->condvar;
   my $msg_send_failed;
@@ -40,10 +41,10 @@ sub notify {
       for my $d (@$dest) {
         $self->log->info("Sending message to $d");
         my $immsg = AnyEvent::XMPP::IM::Message->new(
-          to => $d,
+          to      => $d,
           subject => $info->{subject},
-          body => $info->{message},
-          type => $self->type,
+          body    => $info->{body},
+          type    => $self->type,
         );
         $immsg->send($con);
       }
@@ -57,7 +58,8 @@ sub notify {
   );
 
   $con->connect;
-  my $timer = AnyEvent->timer( after => $self->wait_time, cb => sub { $self->log->info("close"); $j->broadcast; } );
+  my $timer
+    = AnyEvent->timer( after => $self->wait_time, cb => sub { $self->log->info("close"); $j->broadcast; } );
 
   $j->wait;
   $con->disconnect;

@@ -301,16 +301,18 @@ sub notify {
   return unless ( $conf->{notify} );
 
   my $notify = $conf->{notify};
+  my $all_success = $self->env->{jobs_successful} eq 'all';
 
   my %info = (
     subject => '[LOG]' . $self->subject(),
-    message => $self->gen_report,
-    from    => $self->from_address(),
+    body => $self->gen_report,
   );
 
   if ( $notify->{mail} ) {
     $notify->{mail} = [ $notify->{mail} ] unless ( ref $notify->{mail} eq 'ARRAY' );
     for my $mail ( @{ $notify->{mail} } ) {
+      next if($mail->{errors_only} && $all_success);
+      $mail->{from} //= $self->local_user();
       my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new( %$mail, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
         # notify function returns 1 on error. If this happens, try more times
@@ -321,6 +323,7 @@ sub notify {
   if ( $notify->{jabber} ) {
     $notify->{jabber} = [ $notify->{jabber} ] unless ( ref $notify->{jabber} eq 'ARRAY' );
     for my $jid ( @{ $notify->{jabber} } ) {
+      next if($jid->{errors_only} && $all_success);
       my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new( %$jid, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
         # notify function returns 1 on error. If this happens, try more times
@@ -351,7 +354,7 @@ sub subject {
     . $env->{job_id} . ']['
     . $self->log_status . '] '
     . $env->{job_name_save} . ' ('
-    . $self->from_address() . ')';
+    . $self->local_user() . ')';
 }
 
 sub log_status {
@@ -369,7 +372,7 @@ sub log_status {
   return $status;
 }
 
-sub from_address {
+sub local_user {
   return $ENV{SGE_O_LOGNAME} && $ENV{SGE_O_HOST}
     ? join( '@', $ENV{SGE_O_LOGNAME}, $ENV{SGE_O_HOST} )
     : join( '@', $ENV{USER}, ( $ENV{HOSTNAME} || hostname() ) );
