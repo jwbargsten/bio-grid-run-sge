@@ -9,14 +9,13 @@ use Storable qw/nstore retrieve/;
 use File::Temp qw/tempdir/;
 use File::Which;
 use File::Spec;
-use Data::Dumper;
 use Bio::Grid::Run::SGE::Index;
 use Bio::Grid::Run::SGE::Iterator;
 use Bio::Grid::Run::SGE::Util qw/my_glob expand_path my_mkdir expand_path_rel/;
 use Cwd qw/fastcwd/;
 use File::Spec::Functions qw/catfile rel2abs/;
 use Clone qw/clone/;
-use Data::Printer colored => 1, use_prototypes => 0, rc_file => '';
+use Data::Dump;
 use Bio::Gonzales::Util::Cerial;
 use List::MoreUtils qw/uniq/;
 use Capture::Tiny 'capture';
@@ -103,7 +102,7 @@ sub to_string {
       $in->{elements} = \@elements;
     }
   }
-  my $string = p( \%conf );
+  my $string = Data::Dump::dump( \%conf );
 
   return $string;
 }
@@ -202,6 +201,7 @@ sub run {
     or confess "Can't open filehandle: $!";
   say $main_fh "cd '" . fastcwd . "' && " . $submit_cmd;
   $main_fh->close;
+  $self->log->info(">>job_id:" . $env->{job_id}) if($env->{job_id} >= 0);
   $self->queue_post_task() if ( $env->{job_id} >= 0 );
   return;
 }
