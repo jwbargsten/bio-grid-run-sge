@@ -15,7 +15,7 @@ use Cwd qw/fastcwd/;
 
 # VERSION
 
-has 'sep' => ( is => 'rw', required => 1, isa => 'Str' );
+has 'sep' => ( is => 'rw', default => '');
 has 'sep_pos' => ( is => 'rw', default => '^' );
 has 'ignore_first_sep'     => ( is => 'rw' );
 has 'sep_remove'           => ( is => 'rw' );
@@ -65,8 +65,8 @@ sub create {
 
   my $put_sep_at_chunk_end = $self->sep_pos eq '$';
 
-  my $rsep = $self->sep;
-  $rsep = qr/$rsep/;
+  my $rsep = $self->sep // '';
+  $rsep = qr/$rsep/ if($rsep);
 
   for my $f (@$abs_input_files) {
 
@@ -81,7 +81,7 @@ sub create {
       next;
     }
     while (<$fh>) {
-      if (/$rsep/) {
+      if (!$rsep || /$rsep/) {
         if ( $chunk_elem_count && $chunk_elem_count % $chunk_size == 0 ) {
 
           push @file_idx, tell($fh) - ( $put_sep_at_chunk_end ? 0 : length($_) );
