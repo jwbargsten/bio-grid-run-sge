@@ -21,6 +21,8 @@ use List::MoreUtils qw/uniq/;
 use Capture::Tiny 'capture';
 use Config;
 use Bio::Gonzales::Util qw/sys_fmt/;
+use FindBinNew qw($Bin $Script);
+FindBinNew::again();
 
 # VERSION
 
@@ -41,6 +43,8 @@ sub populate_env {
   $env->{job_name_save} = $jn;
   $env->{job_id} //= -1;
 
+  $env->{script_bin}            //= "$Bin/$Script";    # vorher cmd
+  $env->{script_dir}            //= $Bin;
   $config->{prefix_output_dirs} //= 1;
   # FIXME wo config setzten, nur für master nötig?
   $config->{submit_bin}    //= 'qsub';
