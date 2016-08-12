@@ -14,6 +14,8 @@ use Scalar::Util qw/blessed/;
 use IO::Prompt::Tiny qw/prompt/;
 use Data::Dumper;
 use Bio::Grid::Run::SGE::Log::Analysis;
+use FindBinNew qw($Bin $Script);
+FindBinNew::again();
 
 use 5.010;
 
@@ -34,6 +36,8 @@ sub BUILD {
   $env->{task_id}   = $ENV{SGE_TASK_ID} if ( $ENV{SGE_TASK_ID} && $ENV{SGE_TASK_ID} ne 'undefined' );
   $conf->{job_name} = 'cluster_job';
   $env->{job_id}    = $ENV{JOB_ID} // -1;
+  $env->{script_bin}            //= "$Bin/$Script";    # vorher cmd
+  $env->{script_dir}            //= $Bin;
 
   $env->{"task_first"}    = $ENV{SGE_TASK_FIRST}    if ( $ENV{SGE_TASK_FIRST} );
   $env->{"task_last"}     = $ENV{SGE_TASK_LAST}     if ( $ENV{SGE_TASK_LAST} );
