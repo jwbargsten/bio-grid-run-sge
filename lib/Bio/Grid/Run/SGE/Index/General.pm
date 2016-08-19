@@ -15,7 +15,7 @@ use Cwd qw/fastcwd/;
 
 # VERSION
 
-has 'sep' => ( is => 'rw', default => '');
+has 'sep'     => ( is => 'rw', default => '' );
 has 'sep_pos' => ( is => 'rw', default => '^' );
 has 'ignore_first_sep'     => ( is => 'rw' );
 has 'sep_remove'           => ( is => 'rw' );
@@ -56,7 +56,7 @@ sub create {
     return $self;
   }
 
-  $self->log->info( "INDEXING ....");
+  $self->log->info("INDEXING ....");
 
   my $chunk_size = $self->chunk_size;
 
@@ -66,13 +66,13 @@ sub create {
   my $put_sep_at_chunk_end = $self->sep_pos eq '$';
 
   my $rsep = $self->sep // '';
-  $rsep = qr/$rsep/ if($rsep);
+  $rsep = qr/$rsep/ if ($rsep);
 
   for my $f (@$abs_input_files) {
 
     # start of file is the first (chunk) element
-    my @file_idx  = (0);
-    my $num_elems = 1;
+    my @file_idx         = (0);
+    my $num_elems        = 1;
     my $chunk_elem_count = 1;
 
     open my $fh, '<', $f or confess "Can't open filehandle $f: $!";
@@ -81,7 +81,7 @@ sub create {
       next;
     }
     while (<$fh>) {
-      if (!$rsep || /$rsep/) {
+      if ( !$rsep || /$rsep/ ) {
         if ( $chunk_elem_count && $chunk_elem_count % $chunk_size == 0 ) {
 
           push @file_idx, tell($fh) - ( $put_sep_at_chunk_end ? 0 : length($_) );
