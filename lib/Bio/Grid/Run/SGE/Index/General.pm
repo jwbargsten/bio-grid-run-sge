@@ -5,6 +5,7 @@ use strict;
 
 use Mouse;
 
+use IO::Handle;
 use Carp;
 use List::Util qw/sum/;
 use List::MoreUtils qw/uniq/;
