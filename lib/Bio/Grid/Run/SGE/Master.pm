@@ -18,6 +18,7 @@ use Clone qw/clone/;
 use Data::Dump;
 use Bio::Gonzales::Util::Cerial;
 use List::MoreUtils qw/uniq/;
+use List::Util qw/min/;
 use Capture::Tiny 'capture';
 use Config;
 use Bio::Gonzales::Util qw/sys_fmt/;
@@ -201,7 +202,7 @@ sub run {
     or confess "Can't open filehandle: $!";
   say $main_fh "cd '" . fastcwd . "' && " . $submit_cmd;
   $main_fh->close;
-  $self->log->info(">>job_id:" . $env->{job_id}) if($env->{job_id} >= 0);
+  $self->log->info( ">>job_id:" . $env->{job_id} ) if ( $env->{job_id} >= 0 );
   $self->queue_post_task() if ( $env->{job_id} >= 0 );
   return;
 }
@@ -235,7 +236,7 @@ sub build_exec_env {
   my $env  = $self->env;
 
   my ( $from, $to ) = ( 1, $conf->{parts} );
-  $to = $conf->{test} if ( $conf->{test} && $conf->{test} > 0 );
+  $to = min( $conf->{test}, $conf->{parts} ) if ( $conf->{test} && $conf->{test} > 0 );
 
   my @cmd = ( $conf->{submit_bin} );
   push @cmd, '-t', "$from-$to";
