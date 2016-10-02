@@ -325,7 +325,7 @@ sub result_files {
   my $file_regex = qr/^\Q$jn\E #job name
                         \.j$jid #the job id
                         \.[0-9]+ #the sge task id
-                        \.t[\-0-9]+(?:\.[\w\-.#]+)? #my task id
+                        \.c[\-0-9]+(?:\.[\w\-.#]+)? #combination idx
                         (?:\..*)? #suffix
                         $/x;
 

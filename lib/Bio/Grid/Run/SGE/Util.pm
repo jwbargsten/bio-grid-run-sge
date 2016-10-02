@@ -146,7 +146,7 @@ sub concat_files {
   my $file_regex = qr/\Q$c->{job_name}\E #job name
                         \.j$c->{job_id} #the job id
                         \.[0-9]+ #the sge task id
-                        \.t[\-0-9]+(?:\.[\w\-.#]+)? #my task id
+                        \.c[\-0-9]+(?:\.[\w\-.#]+)? # combination idx
                         (?:\..*)? #suffix
                         $/x;
 
@@ -271,7 +271,7 @@ and deletes the single result files. Result files are determined by following re
   qr/\Q$c->{job_name}\E #job name
     \.j$c->{job_id} #the job id
     \.[0-9]+ #the sge task id
-    \.t[\-0-9]+(?:\.[\w\-.#]+)? #my task id
+    \.c[\-0-9]+(?:\.[\w\-.#]+)? #combination idx
     (?:\..*)? #suffix
     $/x;
 

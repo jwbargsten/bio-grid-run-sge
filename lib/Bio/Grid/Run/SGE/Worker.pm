@@ -205,7 +205,7 @@ sub _create_comb_iterator {
     for ( my $i = 0; $i < @$comb; $i++ ) {
       my $idx_type        = $iter->indices->[$i]->type;
       my $infile_template = catfile( $conf->{tmp_dir},
-        sprintf( "worker.j%d.%d.t%d.i%d.tmp", $env->{job_id}, $env->{task_id}, $comb_idx, $i ) );
+        sprintf( "worker.j%d.%d.c%d.i%d.tmp", $env->{job_id}, $env->{task_id}, $comb_idx, $i ) );
 
       if ( $idx_type && $idx_type eq 'direct' ) {
         push @infiles,      $comb->[$i];
@@ -220,7 +220,7 @@ sub _create_comb_iterator {
     }
 
     my $result_prefix = catfile( $conf->{result_dir},
-      sprintf( "%s.j%d.%d.t%d", $env->{job_name_save}, $env->{job_id}, $env->{task_id}, $comb_idx ) );
+      sprintf( "%s.j%d.%d.c%d", $env->{job_name_save}, $env->{job_id}, $env->{task_id}, $comb_idx ) );
 
     return {
       infiles       => \@infiles,
