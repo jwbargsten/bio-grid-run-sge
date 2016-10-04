@@ -287,7 +287,7 @@ sub _run_post_task {
   $log->notify;
 
   # run post task, if desired
-  $post_task->()
+  $post_task->($log->failed_cache)
     if ( $post_task && !$self->config->{no_post_task} );
 }
 

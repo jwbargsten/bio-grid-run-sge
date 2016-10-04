@@ -15,7 +15,6 @@ use Bio::Gonzales::Util::Cerial;
 use Path::Tiny;
 use Data::Dumper;
 
-
 use Sys::Hostname;
 
 # VERSION
@@ -33,6 +32,7 @@ has num_jobs            => ( is => 'rw', default    => 0 );
 has num_jobs_skipped    => ( is => 'rw', default    => 0 );
 has num_jobs_failed     => ( is => 'rw', default    => 0 );
 has log                 => ( is => 'rw', required   => 1 );
+has failed_cache        => ( is => 'rw', default    => sub { [] } );
 
 sub _build_failed_update_file {
   my ($self) = @_;
@@ -210,7 +210,7 @@ sub analyse {
   $self->num_jobs($num_jobs);
   $self->num_jobs_skipped($num_skipped);
 
-  $self->_report_log( $num_jobs   . " jobs in total" );
+  $self->_report_log( $num_jobs . " jobs in total" );
   $self->_report_log( '(' . $num_skipped . " jobs did not need to run again)" ) if ($num_skipped);
   if ($no_jobs_ran_at_all) {
     $self->_report_log("obviously, no jobs were run at all");
@@ -252,11 +252,20 @@ sub _report_crashed_job {
   #replace job array numbers with worker id, to emulate the environment of the original array job
 
   $self->_report_cmd(
-    "cd '$log_data->{cwd}' && $s->{job_cmd} --range $s->{range} --job_id $s->{job_id} --task_id $log_data->{task_id}");
+    "cd '$log_data->{cwd}' && $s->{job_cmd} --range $s->{range} --job_id $s->{job_id} --task_id $log_data->{task_id}"
+  );
   $self->_report_task_log( "Task " . $log_data->{task_id} . " crashed" );
   $self->_report_task_log("    log: $s->{log_file}");
   $self->_report_task_log("    err: $s->{err_file}");
   $self->_report_task_log("    out: $s->{out_file}");
+  push @{ $self->failed_cache },
+    {
+    task_id => $log_data->{task_id},
+    log     => $s->{log_file},
+    err     => $s->{err_file},
+    out     => $s->{out_file},
+    type    => "crashed"
+    };
 
   return;
 }
@@ -269,6 +278,7 @@ sub _report_missing_job {
 
   $self->_report_cmd("cd '$s->{cwd}' && $s->{job_cmd} --job_id $s->{job_id} --task_id $s->{task_id}");
   $self->_report_task_log( "Task " . $s->{task_id} . " crashed, NO_LOG NO_ERR NO_OUT" );
+  push @{ $self->failed_cache }, { task_id => $s->{task_id}, type => "missing" };
 
   return;
 }
@@ -288,6 +298,15 @@ sub _report_error_job {
     $self->_report_task_log("    log: $s->{log_file}");
     $self->_report_task_log("    err: $s->{err_file}");
     $self->_report_task_log("    out: $s->{out_file}");
+
+    push @{ $self->failed_cache },
+      {
+      task_id => $log_data->{task_id},
+      log     => $s->{log_file},
+      err     => $s->{err_file},
+      out     => $s->{out_file},
+      type    => 'error'
+      };
   }
   return;
 }
@@ -300,18 +319,18 @@ sub notify {
   # FIXME read with new functionality
   return unless ( $conf->{notify} );
 
-  my $notify = $conf->{notify};
+  my $notify      = $conf->{notify};
   my $all_success = $self->env->{jobs_successful} eq 'all';
 
   my %info = (
     subject => '[LOG]' . $self->subject(),
-    body => $self->gen_report,
+    body    => $self->gen_report,
   );
 
   if ( $notify->{mail} ) {
     $notify->{mail} = [ $notify->{mail} ] unless ( ref $notify->{mail} eq 'ARRAY' );
     for my $mail ( @{ $notify->{mail} } ) {
-      next if($mail->{errors_only} && $all_success);
+      next if ( $mail->{errors_only} && $all_success );
       $mail->{from} //= $self->local_user();
       my $n = Bio::Grid::Run::SGE::Log::Notify::Mail->new( %$mail, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
@@ -323,7 +342,7 @@ sub notify {
   if ( $notify->{jabber} ) {
     $notify->{jabber} = [ $notify->{jabber} ] unless ( ref $notify->{jabber} eq 'ARRAY' );
     for my $jid ( @{ $notify->{jabber} } ) {
-      next if($jid->{errors_only} && $all_success);
+      next if ( $jid->{errors_only} && $all_success );
       my $n = Bio::Grid::Run::SGE::Log::Notify::Jabber->new( %$jid, log => $self->log );
       for ( my $i = 0; $i < $self->attempts; $i++ ) {
         # notify function returns 1 on error. If this happens, try more times

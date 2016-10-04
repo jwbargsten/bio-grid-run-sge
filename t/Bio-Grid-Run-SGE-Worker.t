@@ -2,6 +2,7 @@ use warnings;
 use strict;
 use Data::Dumper;
 use Test::More skip_all => 1;
+#use Test::More;
 use Storable;
 use File::Temp qw/tempdir/;
 use Bio::Grid::Run::SGE::Util qw/my_glob expand_path my_mkdir/;
@@ -42,6 +43,7 @@ $ENV{JOB_ID} = $job_id;
 undef $Bio::Grid::Run::SGE::Master::RC_FILE;
 
 my $m1 = Bio::Grid::Run::SGE::Master->new(
+  config => {
     working_dir      => $td,
     submit_bin       => 't/Bio-Grid-Run-SGE-Master.qsub.pl',
     cmd              => ['t/Bio-Grid-Run-SGE-Master.script.pl'],
@@ -50,6 +52,8 @@ my $m1 = Bio::Grid::Run::SGE::Master->new(
     use_stdin        => 1,
     result_on_stdout => 1,
     mode           => 'Consecutive',
+  }, env => {},
+
 );
 
 my $cmd1 = $m1->cache_config( "$td/master_config" . $job_id );
