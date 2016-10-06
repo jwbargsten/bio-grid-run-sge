@@ -28,7 +28,7 @@ no_prompt: 1
 
 parts: 3000
 # or
-combinations_per_job: 300
+combinations_per_task: 300
 
 result_dir: result_gff
 working_dir:

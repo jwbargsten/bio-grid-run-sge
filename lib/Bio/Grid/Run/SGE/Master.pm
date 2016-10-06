@@ -213,12 +213,12 @@ sub calc_num_parts {
   my $c    = $self->config;
   my $iter = $self->iterator;
   if ( !$c->{parts} || $c->{parts} > $iter->num_comb ) {
-    if ( $c->{combinations_per_job} && $c->{combinations_per_job} > 1 ) {
-      my $parts = int( $iter->num_comb / $c->{combinations_per_job} );
+    if ( $c->{combinations_per_task} && $c->{combinations_per_task} > 1 ) {
+      my $parts = int( $iter->num_comb / $c->{combinations_per_task} );
 
       #we have a rest, so one part more
       $parts++
-        if ( $parts * $c->{combinations_per_job} < $iter->num_comb );
+        if ( $parts * $c->{combinations_per_task} < $iter->num_comb );
 
       return $parts;
     } else {
@@ -354,7 +354,7 @@ __END__
 
 =over 4
 
-=item B<< combinations_per_job >>
+=item B<< combinations_per_task >>
 
 =item B<< parts >>
 

@@ -62,7 +62,7 @@ has 'extra' => ( is => 'rw' );
 
 # one can supply parts or combinations per job
 has 'parts' => ( is => 'rw', default => 0 );
-has 'combinations_per_job' => ( is => 'rw' );
+has 'combinations_per_task' => ( is => 'rw' );
 
 has 'job_name' => ( is => 'rw', default => 'cluster_job' );
 has 'job_id' => ( is => 'rw' );

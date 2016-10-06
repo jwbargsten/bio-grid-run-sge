@@ -77,7 +77,7 @@ my $m2 = Bio::Grid::Run::SGE::Master->new(
     use_stdin            => 1,
     result_on_stdout     => 1,
     mode               => 'Consecutive',
-    combinations_per_job => 2,
+    combinations_per_task => 2,
 );
 
 my $cmd2 = $m2->cache_config( "$td/master_config" . $job_id );
@@ -101,7 +101,7 @@ my $m3 = Bio::Grid::Run::SGE::Master->new(
     use_stdin            => 1,
     result_on_stdout     => 1,
     mode               => 'Consecutive',
-    combinations_per_job => 3,
+    combinations_per_task => 3,
 );
 
 my $cmd3 = $m3->cache_config("$td/master_config$job_id");

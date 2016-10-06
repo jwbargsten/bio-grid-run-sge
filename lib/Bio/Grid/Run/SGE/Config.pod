@@ -73,7 +73,7 @@ C<$c->{extra}{r_script_bin}>.
 
   parts: 3000
   # or
-  combinations_per_job: 300
+  combinations_per_task 300
 
   result_dir: result_gff
   working_dir:
@@ -252,7 +252,7 @@ Here is a list of reserved configuration options:
     input => ...,
     extra => ...,
     parts => ...,
-    combinations_per_job => ...,
+    combinations_per_task => ...,
     job_name => ...,
     job_id => ...,
     mode => ...,
@@ -299,7 +299,7 @@ Here is a list of reserved configuration options:
 
   parts: 3000
   # or
-  combinations_per_job: 300
+  combinations_per_task 300
 
   result_dir: result_gff
   working_dir:
