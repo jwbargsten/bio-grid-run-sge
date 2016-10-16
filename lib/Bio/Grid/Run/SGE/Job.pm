@@ -210,9 +210,9 @@ sub read_config {
 
   my %config = ( %{ $self->config }, %$conf_rc, %$conf_job );
 
+  $config{args} //= [];
   # from additional cluster script args
   if ( @ARGV && @ARGV > 0 ) {
-    $config{args} //= [];
     push @{ $config{args} }, @ARGV;
   }
 
