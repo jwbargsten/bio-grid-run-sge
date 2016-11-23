@@ -10,7 +10,7 @@ config:
   job_name: cluster_job
   log_dir: /tmp/lXGH5pgD5r/cluster_job.tmp/log
   mode: Dummy
-  parts: 45
+  num_parts: 45
   prefix_output_dirs: 1
   result_dir: /tmp/lXGH5pgD5r/cluster_job.result
   stderr_dir: /tmp/lXGH5pgD5r/cluster_job.tmp/err

@@ -60,8 +60,8 @@ has 'input' => ( is => 'rw', required => 1, isa => 'ArrayRef' );
 
 has 'extra' => ( is => 'rw' );
 
-# one can supply parts or combinations per job
-has 'parts' => ( is => 'rw', default => 0 );
+# one can supply num_parts or combinations per job
+has 'num_parts' => ( is => 'rw', default => 0 );
 has 'combinations_per_task' => ( is => 'rw' );
 
 has 'job_name' => ( is => 'rw', default => 'cluster_job' );
@@ -81,7 +81,7 @@ has 'args' => ( is => 'rw', isa => 'ArrayRef[Str]', default => sub { [] } );
 
 has 'iterator' => ( is => 'rw', lazy_build => 1 );
 
-sub num_slots { return shift->parts(@_) }
+sub num_slots { return shift->num_parts(@_) }
 
 sub _build_log_dir {
   my ($self) = @_;
