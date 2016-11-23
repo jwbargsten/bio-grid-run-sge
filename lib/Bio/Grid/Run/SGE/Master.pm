@@ -35,7 +35,7 @@ has 'parts' => ( is => 'rw', default => 0 );
 
 has 'iterator' => ( is => 'rw', lazy_build => 1 );
 
-sub populate_env {
+sub populate {
   my $self = shift;
 
   my $env    = $self->env;
@@ -81,10 +81,8 @@ sub populate_env {
 sub BUILD {
   my ( $self, $args ) = @_;
 
+  $self->populate;
   # FIXME check required options
-  $self->populate_env;
-
-  $self->prepare;
 }
 
 sub to_string {
