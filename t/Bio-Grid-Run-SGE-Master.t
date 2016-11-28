@@ -50,7 +50,7 @@ my $m = Bio::Grid::Run::SGE::Master->new(
   config => \%conf,
   env    => \%env,
   log    => $LOG,
-);
+)->prepare;
 
 $m->build_exec_env();
 

@@ -142,6 +142,7 @@ sub prepare {
   # one can supply parts or combinations per job
   $self->config->{num_parts} = $self->calc_num_parts;
   $self->env->{num_comb} = $iter->num_comb;
+  return $self;
 }
 
 sub generate_idx_file_name {
