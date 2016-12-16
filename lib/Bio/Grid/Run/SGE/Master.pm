@@ -40,6 +40,9 @@ sub populate {
 
   my $env    = $self->env;
   my $config = $self->config;
+
+	# sge doc: job names are ascii alphanumeric and 
+	# cannot contain "\n", "\t", "\r", "/", ":", "@", "\", "*", or "?".
   ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/cs;
   $env->{job_name_save} = $jn;
   $env->{job_id} //= -1;
