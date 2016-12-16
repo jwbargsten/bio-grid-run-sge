@@ -40,7 +40,7 @@ sub populate {
 
   my $env    = $self->env;
   my $config = $self->config;
-  ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/csd;
+  ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/cs;
   $env->{job_name_save} = $jn;
   $env->{job_id} //= -1;
 
