@@ -40,6 +40,8 @@ sub populate_env {
 
   my $env    = $self->env;
   my $config = $self->config;
+	# job names are ascii alphanumeric and 
+	# cannot contain "\n", "\t", "\r", "/", ":", "@", "\", "*", or "?".
   ( my $jn = $config->{job_name} ) =~ y/-0-9A-Za-z_./_/csd;
   $env->{job_name_save} = $jn;
   $env->{job_id} //= -1;
