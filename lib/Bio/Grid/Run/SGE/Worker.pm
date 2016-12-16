@@ -71,7 +71,7 @@ sub _determine_range {
   my $env     = $self->env;
   my $task_id = $env->{task_id};
 
-  my ( $num_comb, $parts ) = ( $env->{num_comb}, $conf->{parts} );
+  my ( $num_comb, $num_parts ) = ( $env->{num_comb}, $conf->{num_parts} );
 
   $env->{part_size} = 1;
   if ( $env->{range} ) {
@@ -83,13 +83,13 @@ sub _determine_range {
   #make everyting 0 based
   $task_id--;
 
-  unless ($parts) {
+  unless ($num_parts) {
     $env->{range} = [ $task_id, $task_id ];
     return;
   }
-  my $part_size = int( $num_comb / $parts );
+  my $part_size = int( $num_comb / $num_parts );
 
-  my $rest = $num_comb % $parts;
+  my $rest = $num_comb % $num_parts;
 
   my $from = $part_size * $task_id;
   my $to   = $from + $part_size - 1;
@@ -97,7 +97,7 @@ sub _determine_range {
   $env->{range} = [ $from, $to ];
   if ( $task_id < $rest ) {
     #do sth extra
-    push @{ $env->{range} }, ( $part_size * $parts ) + $task_id;
+    push @{ $env->{range} }, ( $part_size * $num_parts ) + $task_id;
   }
 
   return;

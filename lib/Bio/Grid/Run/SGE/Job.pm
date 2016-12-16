@@ -267,6 +267,8 @@ sub _run_master {
     $run_args->{pre_task}->($master);
   }
 
+  $master->prepare;
+
   $self->log->info( "CONFIGURATION:", "(" . $self->env->{worker_config_file} . ")", $master->to_string );
   if ( $c->{no_prompt} || prompt( "run job? [yn]", 'y' ) eq 'y' ) {
     $master->run;
