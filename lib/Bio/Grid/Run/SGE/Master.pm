@@ -31,7 +31,7 @@ has 'env'    => ( is => 'rw', required => 1 );
 has 'config' => ( is => 'rw', required => 1 );
 has 'log'    => ( is => 'rw', required => 1 );
 
-has 'parts' => ( is => 'rw', default => 0 );
+has 'num_parts' => ( is => 'rw', default => 0 );
 
 has 'iterator' => ( is => 'rw', lazy_build => 1 );
 
@@ -141,8 +141,8 @@ sub prepare {
   # make sure the iterator gets built
   my $iter = $self->iterator;
 
-  # one can supply parts or combinations per job
-  $self->config->{parts} ||= $self->calc_num_parts;
+  # one can supply num_parts or combinations per job
+  $self->config->{num_parts} ||= $self->calc_num_parts;
   $self->env->{num_comb} = $iter->num_comb;
 }
 
@@ -212,21 +212,20 @@ sub calc_num_parts {
 
   my $c    = $self->config;
   my $iter = $self->iterator;
-  if ( !$c->{parts} || $c->{parts} > $iter->num_comb ) {
+  if ( !$c->{num_parts} || $c->{num_parts} > $iter->num_comb ) {
     if ( $c->{combinations_per_task} && $c->{combinations_per_task} > 1 ) {
-      my $parts = int( $iter->num_comb / $c->{combinations_per_task} );
+      my $num_parts = int( $iter->num_comb / $c->{combinations_per_task} );
 
       #we have a rest, so one part more
-      $parts++
-        if ( $parts * $c->{combinations_per_task} < $iter->num_comb );
+      $num_parts++
+        if ( $num_parts * $c->{combinations_per_task} < $iter->num_comb );
 
-      return $parts;
+      return $num_parts;
     } else {
       return $iter->num_comb;
     }
   }
-  # TODO parts -> num_parts
-  return $c->{parts};
+  return $c->{num_parts};
 }
 
 sub build_exec_env {
@@ -235,8 +234,8 @@ sub build_exec_env {
   my $conf = $self->config;
   my $env  = $self->env;
 
-  my ( $from, $to ) = ( 1, $conf->{parts} );
-  $to = min( $conf->{test}, $conf->{parts} ) if ( $conf->{test} && $conf->{test} > 0 );
+  my ( $from, $to ) = ( 1, $conf->{num_parts} );
+  $to = min( $conf->{test}, $conf->{num_parts} ) if ( $conf->{test} && $conf->{test} > 0 );
 
   my @cmd = ( $conf->{submit_bin} );
   push @cmd, '-t', "$from-$to";
@@ -356,7 +355,7 @@ __END__
 
 =item B<< combinations_per_task >>
 
-=item B<< parts >>
+=item B<< num_parts >>
 
 =back
 
