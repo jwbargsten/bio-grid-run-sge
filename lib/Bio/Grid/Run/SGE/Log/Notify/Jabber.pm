@@ -13,7 +13,6 @@ use 5.010;
 
 # VERSION
 
-has log       => ( is => 'rw', required   => 1 );
 has jid       => ( is => 'rw', required   => 1 );
 has password  => ( is => 'rw', required   => 1 );
 has type      => ( is => 'rw', default    => 'chat' );

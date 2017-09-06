@@ -83,7 +83,7 @@ analysis in the Bio::Grid::Run::SGE environment.
     use Bio::Grid::Run::SGE;
     use Bio::Gonzales::Seq::IO qw/faslurp faspew/;
 
-    run_job(
+    job->run({
       task => sub {
         my ( $c, $result_file_name_prefix, $input) = @_;
 
@@ -104,7 +104,7 @@ analysis in the Bio::Grid::Run::SGE environment.
         # return 1 for success (0/undef for error)
         return 1;
       }
-    );
+    });
 
     1;
 
@@ -182,6 +182,11 @@ Output is stored in the result folder, intermediate files are stored in the
 temporary folder. The temporary folder contains the log, scripts to rerun
 failed jobs, update the job status, standard error and output, files
 containing data chunks and additional log information.
+
+=head2 Logical parts
+
+
+
 
 =head1 DOCUMENTATION CONTENTS
 

@@ -11,12 +11,15 @@ use Bio::Gonzales::Util::Cerial;
 
 use File::Spec;
 
-job->run(
-  {
-    task => sub {
+job->run({
+    'task' => sub {
       my ( $result_prefix, $idx_item ) = @_;
 
       job->log->info("Running $idx_item->[0] -> $result_prefix");
+      job->log->warn("Running $idx_item->[0] -> $result_prefix");
+      job->log->error("Running $idx_item->[0] -> $result_prefix");
+      job->log->debug("Running $idx_item->[0] -> $result_prefix");
+
       jspew( $result_prefix . ".env.json",  \%ENV );
       jspew( $result_prefix . ".item.json", $idx_item );
       sleep 1;
@@ -30,8 +33,7 @@ job->run(
       $fh->close;
     },
     usage => \&usage,
-  }
-);
+});
 
 sub usage {
   return <<EOF;
