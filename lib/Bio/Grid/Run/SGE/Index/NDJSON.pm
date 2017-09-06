@@ -1,4 +1,4 @@
-package Bio::Grid::Run::SGE::Index::General;
+package Bio::Grid::Run::SGE::Index::NDJSON;
 
 use warnings;
 use strict;
@@ -13,20 +13,14 @@ use Bio::Gonzales::Util::File qw/open_on_demand is_newer/;
 use Bio::Grid::Run::SGE::Util qw/glob_list/;
 use Data::Dumper;
 use Cwd qw/fastcwd/;
+use JSON::XS;
 
 # VERSION
 
-has 'sep'     => ( is => 'rw', default => '' );
-has 'sep_pos' => ( is => 'rw', default => '^' );
-has 'ignore_first_sep'     => ( is => 'rw' );
-has 'sep_remove'           => ( is => 'rw' );
 has 'num_elems_cumulative' => ( is => 'rw' );
 has overwrite              => ( is => 'rw', default => 1 );
-has _fh_is_open            => ( is => 'rw' );
-has _last_pos              => ( is => 'rw' );
 has _current_fh            => ( is => 'rw' );
 has _current_file_idx      => ( is => 'rw' );
-has _current_file_range    => ( is => 'rw' );
 
 with 'Bio::Grid::Run::SGE::Role::Indexable';
 
@@ -64,11 +58,6 @@ sub create {
   $self->idx( [] )
     if ( $self->overwrite );
 
-  my $put_sep_at_chunk_end = $self->sep_pos eq '$';
-
-  my $rsep = $self->sep // '';
-  $rsep = qr/$rsep/ if ($rsep);
-
   for my $f (@$abs_input_files) {
 
     # start of file is the first (chunk) element
@@ -81,16 +70,14 @@ sub create {
       $fh->close;
       next;
     }
-    while (<$fh>) {
-      if ( !$rsep || /$rsep/ ) {
-        if ( $chunk_elem_count && $chunk_elem_count % $chunk_size == 0 ) {
 
-          push @file_idx, tell($fh) - ( $put_sep_at_chunk_end ? 0 : length($_) );
-          $num_elems++;
-          $chunk_elem_count = 0;
-        }
-        $chunk_elem_count++;
+    while (<$fh>) {
+      if ( $chunk_elem_count && $chunk_elem_count % $chunk_size == 0 ) {
+        push @file_idx, tell($fh) - length($_);
+        $num_elems++;
+        $chunk_elem_count = 0;
       }
+      $chunk_elem_count++;
     }
     push @{ $self->idx },
       {
@@ -104,7 +91,6 @@ sub create {
     $fh->close;
   }
 
-  $self->_internal_info()->{sep} = $self->sep;
   $self->_store;
   $self->_cache_meta_data;
 
@@ -116,12 +102,6 @@ sub _is_indexed {
 
   return if ( $self->_reindexing_necessary );
   return unless ( @{ $self->idx } > 0 && -f $self->idx_file );
-
-  # the config file has a different separator than the index
-  return
-    unless ( $self->_internal_info
-    && $self->_internal_info->{sep}
-    && $self->_internal_info->{sep} eq $self->sep );
 
   my %idx_input_files = map { $_->{file} => $_->{age} } @{ $self->idx };
 
@@ -208,12 +188,10 @@ sub get_elem {
 
   my $read_length;
   #needed for remove sep operation
-  my $is_eof;
   if ( $file_elem_idx + 1 < @{ $idx->[$cur_file_idx]{pos} } ) {
     $read_length = $idx->[$cur_file_idx]{pos}[ $file_elem_idx + 1 ];
   } else {
     $read_length = $idx->[$cur_file_idx]{eof_pos};
-    $is_eof      = 1;
   }
 
   $read_length -= $read_start;
@@ -222,26 +200,10 @@ sub get_elem {
   my $data;
   read $fh, $data, $read_length;
 
-  #FIXME document sep_remove
-  #for sep remove sth. like <file_start><entry1><sep><entry2><sep>...<sep>entryN><file_end> is expected,
-  #so no sep at begin or end of file, otherwise it will break!
-  if ( $self->sep_remove ) {
-    if ( $self->sep_pos eq '^' && ( $file_elem_idx > 0 || $self->ignore_first_sep ) ) {
-      #make we are somewhere in the middle of the file, so we need to remove the seperator
-
-      my $sep_idx = index $data, "\n";
-      $data = substr( $data, $sep_idx + 1 );
-    } elsif ( $self->sep_pos eq '$' && !$is_eof ) {
-      #make we are somewhere in the middle of the file, so we need to remove the seperator
-
-      #get rid of last "\n", so rindex does not get confused
-      chomp $data;
-      my $sep_idx = rindex $data, "\n";
-      $data = substr( $data, 0, $sep_idx + 1 );
-    }
-  }
-
-  return $data;
+  return {
+    file => $idx->[$cur_file_idx]{file},
+    elements => [ map { decode_json($_) } split(/\n/, $data) ]
+  };
 }
 
 sub num_elem {
@@ -258,7 +220,7 @@ sub num_elem {
 }
 
 sub type {
-  return;
+  return "direct";
 }
 
 sub _binsearch_file_idx {
@@ -301,84 +263,3 @@ sub close {
 1;
 
 __END__
-
-=head1 NAME
-
-
-
-=head1 SYNOPSIS
-
-  #wenn export, dann hier im qw()
-  my $idx = Bio::Grid::Run::SGE::Index::General->new(
-    'idx_file' => $idx_file,
-    'sep'      => '^>'
-    'sep_pos' => '^',
-    'sep_remove' => 1,
-    'ignore_first_sep' => 1,
-
-  );
-
-=head1 DESCRIPTION
-
-=over 4
-
-=item B<< sep_remove >>
-
-remove the separators between the data records. For sep remove sth. like
-
-  <FILE_START>
-  <entry1>
-  <sep>
-  <entry2>
-  <sep>
-  ...
-  <sep>
-  <entryN>
-  <FILE_END>
-
-is expected, so no separator at begin or end of file, otherwise it will break! If
-you have a separator before the first data record, you can use the
-C<ignore_first_sep> option to skip over it.
-
-=item B<< sep_pos >>
-
-Can be '^' or '$'. '^' corresponds to a file layout
-
-  <FILE_START>
-  <sep> <--- NOTE: the first sep
-  <entry1>
-  <sep>
-  <entry2>
-  <sep>
-  ...
-  <sep>
-  <entryN> <--- NOTE: no last sep
-  <FILE_END>
-
-'$' corresponds to a file layout:
-
-  <FILE_START>
-  <entry1><--- NOTE: no first sep
-  <sep>
-  <entry2>
-  <sep>
-  ...
-  <sep>
-  <entryN>
-  <sep> <--- NOTE: the last sep
-  <FILE_END>
-
-=back
-
-=head1 OPTIONS
-
-=head1 SUBROUTINES
-=head1 METHODS
-
-=head1 SEE ALSO
-
-=head1 AUTHOR
-
-jw bargsten, C<< <jwb at cpan dot org> >>
-
-=cut
