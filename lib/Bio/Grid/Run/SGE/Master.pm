@@ -31,8 +31,6 @@ has 'env'    => ( is => 'rw', required => 1 );
 has 'config' => ( is => 'rw', required => 1 );
 has 'log'    => ( is => 'rw', required => 1 );
 
-has 'num_parts' => ( is => 'rw', default => 0 );
-
 has 'iterator' => ( is => 'rw', lazy_build => 1 );
 
 sub populate {
