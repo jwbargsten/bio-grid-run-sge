@@ -227,8 +227,7 @@ Example configuration:
   'perl_bin'           => '/home/cafa/perl5/perlbrew/perls/perl-5.16.3/bin/perl',
   'result_dir'         => '/WORKING_DIR/xml_munge1.result',
   'part_size'          => 1,
-  'num_parts'              => 564
-
+  'num_parts'          => 564
 
 
 Here is a list of reserved configuration options:
