@@ -44,7 +44,7 @@ sub BUILD {
   $env->{is_last_task} = $env->{task_last} > 0 && $env->{task_id} == $env->{task_last} ? 1 : 0
     if ( $env->{task_last} && $env->{task_id} );
 
-  $self->env( "rc_file" => "$ENV{HOME}/.bio-grid-run-sge.conf.yml" );
+  $self->env( "rc_file" => ($ENV{BGRS_RC_FILE} // "$ENV{HOME}/.bio-grid-run-sge.conf.yml") );
 }
 
 sub task_id { shift->env( "task_id", @_ ); }
@@ -208,7 +208,7 @@ sub read_config {
   # 3. load from config file *.job.yml
   my $conf_job = $config_file && -f $config_file ? yslurp($config_file) : {};
 
-  my %config = ( %{ $self->config }, %$conf_rc, %$conf_job );
+  my %config = ( %{ $self->config }, %{ $conf_rc // {} }, %$conf_job );
 
   $config{args} //= [];
   # from additional cluster script args
@@ -216,7 +216,8 @@ sub read_config {
     push @{ $config{args} }, @ARGV;
   }
 
-  confess "no configuration found, file: $config_file" unless ( %$conf_rc || %$conf_job );
+  confess "no configuration found, file: $config_file"
+    unless ( ( $conf_rc && %$conf_rc ) || ( $conf_job && %$conf_job ) );
   return \%config;
 }
 
@@ -289,7 +290,7 @@ sub _run_post_task {
   $log->notify;
 
   # run post task, if desired
-  $post_task->($log->failed_cache)
+  $post_task->( $log->failed_cache )
     if ( $post_task && !$self->config->{no_post_task} );
 }
 
@@ -369,9 +370,10 @@ and exported as C <job()> function:
 
 =head1 ATTRIBUTES
 
-=item B<< my $log = $j->log() >>
+=head2 my $log = $j->log()
 
 Returns a L<Bio::Gonzales::Util::Log> logging instance. Useful functions are 
+
 =over 4
 
 =item * C<$log->debug("text")>
