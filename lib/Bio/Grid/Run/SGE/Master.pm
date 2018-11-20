@@ -283,7 +283,7 @@ EOS
     my @dirs = uniq( grep {$_} split( /\Q$Config{path_sep}\E/, $ENV{PATH} ) );
     my $path = "'" . join( "','", @dirs ) . "'";
     print $fh <<EOS;
-my \@path = do { my \%seen; grep { !\$seen{\$_}++ } ( split(/:/, \$ENV{PATH}), $path) };
+my \@path = do { my \%seen; grep { !\$seen{\$_}++ } ( $path, split(/:/, \$ENV{PATH})) };
 \$ENV{PATH} = join(":", \@path);
 EOS
   }
